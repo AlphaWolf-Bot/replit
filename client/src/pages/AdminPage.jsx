@@ -12,6 +12,29 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Checkbox } from '@/components/ui/checkbox';
+import { 
+  Table, TableBody, TableCaption, TableCell, 
+  TableHead, TableHeader, TableRow 
+} from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose
+} from "@/components/ui/dialog";
+import { Textarea } from '@/components/ui/textarea';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const AdminPage = () => {
   const [, setLocation] = useLocation();
@@ -36,6 +59,25 @@ const AdminPage = () => {
   // State for editing social media
   const [editingSocialId, setEditingSocialId] = useState(null);
   
+  // State for task form
+  const [taskForm, setTaskForm] = useState({
+    title: '',
+    description: '',
+    type: 'daily',
+    icon: 'bx-check-circle',
+    iconColor: 'text-primary',
+    target: 1,
+    reward: 50,
+    socialLink: '',
+    isActive: true
+  });
+  
+  // State for editing task
+  const [editingTaskId, setEditingTaskId] = useState(null);
+  
+  // State for task dialog
+  const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
+  
   // Get coin settings
   const { data: coinSettings } = useQuery({
     queryKey: ['/api/admin/coin-settings'],
@@ -50,6 +92,26 @@ const AdminPage = () => {
   // Get all social media links
   const { data: socialMediaLinks } = useQuery({
     queryKey: ['/api/admin/social-media']
+  });
+  
+  // Get dashboard stats
+  const { data: dashboardStats } = useQuery({
+    queryKey: ['/api/admin/dashboard/stats']
+  });
+  
+  // Get recent users
+  const { data: recentUsers } = useQuery({
+    queryKey: ['/api/admin/dashboard/recent-users']
+  });
+  
+  // Get recent transactions
+  const { data: recentTransactions } = useQuery({
+    queryKey: ['/api/admin/dashboard/recent-transactions']
+  });
+  
+  // Get all tasks
+  const { data: tasks } = useQuery({
+    queryKey: ['/api/admin/tasks']
   });
   
   // Mutation for updating coin settings
@@ -139,6 +201,98 @@ const AdminPage = () => {
     }
   });
   
+  // Mutation for creating a task
+  const createTaskMutation = useMutation({
+    mutationFn: (data) => apiRequest('/api/admin/tasks', {
+      method: 'POST',
+      data
+    }),
+    onSuccess: () => {
+      toast({
+        title: 'Task Created',
+        description: 'The task has been created successfully.'
+      });
+      
+      // Reset form and dialog
+      setTaskForm({
+        title: '',
+        description: '',
+        type: 'daily',
+        icon: 'bx-check-circle',
+        iconColor: 'text-primary',
+        target: 1,
+        reward: 50,
+        socialLink: '',
+        isActive: true
+      });
+      setIsTaskDialogOpen(false);
+      
+      // Refresh data
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to create task.',
+        variant: 'destructive'
+      });
+    }
+  });
+  
+  // Mutation for updating a task
+  const updateTaskMutation = useMutation({
+    mutationFn: ({ id, data }) => apiRequest(`/api/admin/tasks/${id}`, {
+      method: 'PUT',
+      data
+    }),
+    onSuccess: () => {
+      toast({
+        title: 'Task Updated',
+        description: 'The task has been updated successfully.'
+      });
+      
+      // Reset editing state and dialog
+      setEditingTaskId(null);
+      setIsTaskDialogOpen(false);
+      
+      // Refresh data
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to update task.',
+        variant: 'destructive'
+      });
+    }
+  });
+  
+  // Mutation for deleting a task
+  const deleteTaskMutation = useMutation({
+    mutationFn: (id) => apiRequest(`/api/admin/tasks/${id}`, {
+      method: 'DELETE'
+    }),
+    onSuccess: () => {
+      toast({
+        title: 'Task Deleted',
+        description: 'The task has been deactivated successfully.'
+      });
+      
+      // Refresh data
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to delete task.',
+        variant: 'destructive'
+      });
+    }
+  });
+  
   // Handle coin settings form submission
   const handleCoinSettingsSubmit = (e) => {
     e.preventDefault();
@@ -191,6 +345,62 @@ const AdminPage = () => {
     });
   };
   
+  // Handle task form submission
+  const handleTaskSubmit = (e) => {
+    e.preventDefault();
+    
+    if (editingTaskId) {
+      updateTaskMutation.mutate({
+        id: editingTaskId,
+        data: taskForm
+      });
+    } else {
+      createTaskMutation.mutate(taskForm);
+    }
+  };
+  
+  // Handle editing a task
+  const handleEditTask = (task) => {
+    setTaskForm({
+      title: task.title,
+      description: task.description,
+      type: task.type,
+      icon: task.icon,
+      iconColor: task.iconColor || 'text-primary',
+      target: task.target,
+      reward: task.reward,
+      socialLink: task.socialLink || '',
+      isActive: task.isActive
+    });
+    
+    setEditingTaskId(task.id);
+    setIsTaskDialogOpen(true);
+  };
+  
+  // Handle deleting a task
+  const handleDeleteTask = (id) => {
+    if (confirm('Are you sure you want to deactivate this task? This will hide it from users.')) {
+      deleteTaskMutation.mutate(id);
+    }
+  };
+  
+  // Handle opening task dialog for new task
+  const handleNewTask = () => {
+    setTaskForm({
+      title: '',
+      description: '',
+      type: 'daily',
+      icon: 'bx-check-circle',
+      iconColor: 'text-primary',
+      target: 1,
+      reward: 50,
+      socialLink: '',
+      isActive: true
+    });
+    setEditingTaskId(null);
+    setIsTaskDialogOpen(true);
+  };
+  
   // List of common social media icons
   const socialIcons = [
     { name: 'Twitter', icon: 'bxl-twitter' },
@@ -214,6 +424,30 @@ const AdminPage = () => {
     { name: 'Purple', color: 'text-purple-500' },
     { name: 'Teal', color: 'text-teal-500' }
   ];
+  
+  // List of task icons
+  const taskIcons = [
+    { name: 'Check Circle', icon: 'bx-check-circle' },
+    { name: 'Trophy', icon: 'bx-trophy' },
+    { name: 'Target', icon: 'bx-target-lock' },
+    { name: 'Game', icon: 'bx-game' },
+    { name: 'Dollar', icon: 'bx-dollar-circle' },
+    { name: 'Star', icon: 'bx-star' },
+    { name: 'Medal', icon: 'bx-medal' },
+    { name: 'Gift', icon: 'bx-gift' },
+    { name: 'Rocket', icon: 'bx-rocket' },
+    { name: 'Group', icon: 'bx-group' },
+    { name: 'Share', icon: 'bx-share-alt' },
+    { name: 'Like', icon: 'bx-like' }
+  ];
+  
+  // Task types
+  const taskTypes = [
+    { name: 'Daily', value: 'daily' },
+    { name: 'Weekly', value: 'weekly' },
+    { name: 'Social', value: 'social' },
+    { name: 'Special', value: 'special' }
+  ];
 
   return (
     <div className="p-4 flex flex-col h-full">
@@ -229,11 +463,301 @@ const AdminPage = () => {
         </Button>
       </div>
       
-      <Tabs defaultValue="coin" className="flex-1">
-        <TabsList className="grid w-full grid-cols-2">
+      <Tabs defaultValue="dashboard" className="flex-1">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+          <TabsTrigger value="tasks">Tasks</TabsTrigger>
           <TabsTrigger value="coin">Coin Settings</TabsTrigger>
           <TabsTrigger value="social">Social Media</TabsTrigger>
         </TabsList>
+        
+        {/* Dashboard Tab */}
+        <TabsContent value="dashboard" className="space-y-4 mt-4">
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Total Users</p>
+                    <h3 className="text-2xl font-bold mt-1">
+                      {dashboardStats?.data?.totalUsers || 0}
+                    </h3>
+                  </div>
+                  <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+                    <i className="bx bx-user text-primary text-2xl"></i>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  <span className="text-green-500">
+                    +{dashboardStats?.data?.newUsers || 0} new
+                  </span>{" "}
+                  in the last 7 days
+                </p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Total Coins</p>
+                    <h3 className="text-2xl font-bold mt-1">
+                      {dashboardStats?.data?.totalCoins?.toLocaleString() || 0}
+                    </h3>
+                  </div>
+                  <div className="w-12 h-12 bg-amber-500/10 rounded-full flex items-center justify-center">
+                    <i className="bx bx-coin text-amber-500 text-2xl"></i>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  In circulation across all users
+                </p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Transactions</p>
+                    <h3 className="text-2xl font-bold mt-1">
+                      {dashboardStats?.data?.transactions?.count || 0}
+                    </h3>
+                  </div>
+                  <div className="w-12 h-12 bg-blue-500/10 rounded-full flex items-center justify-center">
+                    <i className="bx bx-transfer text-blue-500 text-2xl"></i>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Total volume: {dashboardStats?.data?.transactions?.totalAmount?.toLocaleString() || 0} coins
+                </p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Active Tasks</p>
+                    <h3 className="text-2xl font-bold mt-1">
+                      {tasks?.data?.filter(t => t.isActive).length || 0}
+                    </h3>
+                  </div>
+                  <div className="w-12 h-12 bg-green-500/10 rounded-full flex items-center justify-center">
+                    <i className="bx bx-check-circle text-green-500 text-2xl"></i>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Out of {tasks?.data?.length || 0} total tasks
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+          
+          {/* Recent Users and Transactions */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Recent Users */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Users</CardTitle>
+                <CardDescription>
+                  Latest users who joined the platform
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {recentUsers?.data ? (
+                    recentUsers.data.map((user) => (
+                      <div key={user.id} className="flex items-center justify-between py-2">
+                        <div className="flex items-center space-x-3">
+                          <Avatar>
+                            <AvatarImage src={user.photoUrl} />
+                            <AvatarFallback>{user.firstName.charAt(0)}{user.lastName ? user.lastName.charAt(0) : ''}</AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <div className="font-medium">
+                              {user.firstName} {user.lastName}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              @{user.username} · {new Date(user.createdAt).toLocaleDateString()}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-sm">
+                          <span className="text-amber-500">
+                            <i className="bx bx-coin-stack text-amber-500 mr-1"></i>
+                            {user.coins}
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="py-4 text-center text-muted-foreground">
+                      Loading recent users...
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+            
+            {/* Recent Transactions */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Transactions</CardTitle>
+                <CardDescription>
+                  Latest transactions on the platform
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {recentTransactions?.data ? (
+                    recentTransactions.data.map((transaction) => (
+                      <div key={transaction.id} className="flex items-center justify-between py-2">
+                        <div className="flex items-center space-x-3">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                            transaction.type === 'credit' 
+                              ? 'bg-green-500/10 text-green-500'
+                              : 'bg-red-500/10 text-red-500'
+                          }`}>
+                            <i className={`bx ${
+                              transaction.type === 'credit' 
+                                ? 'bx-plus-circle'
+                                : 'bx-minus-circle'
+                            } text-xl`}></i>
+                          </div>
+                          <div>
+                            <div className="font-medium">
+                              {transaction.description}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {transaction.firstName} {transaction.lastName}
+                              · {new Date(transaction.createdAt).toLocaleDateString()}
+                            </div>
+                          </div>
+                        </div>
+                        <div className={`text-sm ${
+                          transaction.type === 'credit' 
+                            ? 'text-green-500'
+                            : 'text-red-500'
+                        }`}>
+                          {transaction.type === 'credit' ? '+' : '-'}
+                          {transaction.amount}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="py-4 text-center text-muted-foreground">
+                      Loading recent transactions...
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+        
+        {/* Tasks Tab */}
+        <TabsContent value="tasks" className="space-y-4 mt-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-xl font-bold">Tasks Management</h2>
+              <p className="text-sm text-muted-foreground">
+                Create and manage tasks for users to complete
+              </p>
+            </div>
+            <Button onClick={handleNewTask}>
+              <i className="bx bx-plus mr-1"></i> Add Task
+            </Button>
+          </div>
+          
+          {/* Tasks List */}
+          <div className="space-y-4">
+            {tasks?.data ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Title</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Target</TableHead>
+                    <TableHead>Reward</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {tasks.data.map((task) => (
+                    <TableRow key={task.id}>
+                      <TableCell>
+                        <div className="flex items-center space-x-3">
+                          <div className={`w-8 h-8 rounded-full ${task.iconColor.replace('text-', 'bg-')}/10 flex items-center justify-center`}>
+                            <i className={`bx ${task.icon} ${task.iconColor}`}></i>
+                          </div>
+                          <div>
+                            <div className="font-medium">{task.title}</div>
+                            <div className="text-xs text-muted-foreground truncate max-w-[200px]">
+                              {task.description}
+                            </div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className="capitalize">{task.type}</span>
+                      </TableCell>
+                      <TableCell>{task.target}</TableCell>
+                      <TableCell>
+                        <span className="text-amber-500">
+                          <i className="bx bx-coin text-amber-500 mr-1"></i>
+                          {task.reward}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className={`px-2 py-1 rounded-full text-xs ${
+                          task.isActive 
+                            ? 'bg-green-500/10 text-green-500'
+                            : 'bg-gray-500/10 text-gray-500'
+                        }`}>
+                          {task.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end space-x-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditTask(task)}
+                          >
+                            <i className="bx bx-edit"></i>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteTask(task.id)}
+                          >
+                            <i className="bx bx-trash text-red-500"></i>
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <div className="py-8 text-center">
+                <div className="w-16 h-16 mx-auto mb-4 bg-primary/10 rounded-full flex items-center justify-center">
+                  <i className="bx bx-check-circle text-primary text-3xl"></i>
+                </div>
+                <h3 className="text-lg font-medium">No tasks yet</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Tasks will appear here once created
+                </p>
+                <Button onClick={handleNewTask}>
+                  <i className="bx bx-plus mr-1"></i> Add Your First Task
+                </Button>
+              </div>
+            )}
+          </div>
+        </TabsContent>
         
         {/* Coin Settings Tab */}
         <TabsContent value="coin" className="space-y-4 mt-4">
@@ -582,6 +1106,221 @@ const AdminPage = () => {
           </Card>
         </TabsContent>
       </Tabs>
+      
+      {/* Task Dialog */}
+      <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>{editingTaskId ? 'Edit Task' : 'Create New Task'}</DialogTitle>
+            <DialogDescription>
+              {editingTaskId ? 'Update task details below.' : 'Fill in the details to create a new task for users.'}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <form onSubmit={handleTaskSubmit} className="space-y-4 mt-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="title">Task Title</Label>
+              <Input 
+                id="title"
+                placeholder="e.g. Daily Login"
+                value={taskForm.title}
+                onChange={(e) => setTaskForm({
+                  ...taskForm,
+                  title: e.target.value
+                })}
+                required
+              />
+            </div>
+            
+            <div className="space-y-1.5">
+              <Label htmlFor="description">Description</Label>
+              <Textarea 
+                id="description"
+                placeholder="e.g. Login to the app every day to earn coins"
+                value={taskForm.description}
+                onChange={(e) => setTaskForm({
+                  ...taskForm,
+                  description: e.target.value
+                })}
+                required
+                className="min-h-[80px]"
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="type">Task Type</Label>
+                <Select 
+                  value={taskForm.type}
+                  onValueChange={(value) => setTaskForm({
+                    ...taskForm,
+                    type: value
+                  })}
+                >
+                  <SelectTrigger id="type">
+                    <SelectValue placeholder="Select task type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {taskTypes.map((type) => (
+                      <SelectItem key={type.value} value={type.value}>
+                        {type.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-1.5">
+                <Label htmlFor="target">Target Count</Label>
+                <Input 
+                  id="target"
+                  type="number"
+                  min="1"
+                  placeholder="1"
+                  value={taskForm.target}
+                  onChange={(e) => setTaskForm({
+                    ...taskForm,
+                    target: parseInt(e.target.value) || 1
+                  })}
+                  required
+                />
+                <small className="text-xs text-muted-foreground">
+                  How many times user needs to complete the task
+                </small>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="reward">Reward (coins)</Label>
+                <Input 
+                  id="reward"
+                  type="number"
+                  min="1"
+                  placeholder="50"
+                  value={taskForm.reward}
+                  onChange={(e) => setTaskForm({
+                    ...taskForm,
+                    reward: parseInt(e.target.value) || 0
+                  })}
+                  required
+                />
+              </div>
+              
+              <div className="space-y-1.5">
+                <Label htmlFor="socialLink">Social Media Link (Optional)</Label>
+                <Input 
+                  id="socialLink"
+                  placeholder="For social tasks only"
+                  value={taskForm.socialLink}
+                  onChange={(e) => setTaskForm({
+                    ...taskForm,
+                    socialLink: e.target.value
+                  })}
+                />
+              </div>
+            </div>
+            
+            <div className="space-y-1.5">
+              <Label>Task Icon</Label>
+              <ToggleGroup 
+                type="single" 
+                className="flex flex-wrap justify-start"
+                value={taskForm.icon}
+                onValueChange={(value) => {
+                  if (value) {
+                    setTaskForm({
+                      ...taskForm,
+                      icon: value
+                    });
+                  }
+                }}
+              >
+                {taskIcons.map((item) => (
+                  <ToggleGroupItem 
+                    key={item.icon} 
+                    value={item.icon}
+                    aria-label={item.name}
+                    className="data-[state=on]:bg-primary data-[state=on]:text-white"
+                  >
+                    <i className={`bx ${item.icon} text-xl`}></i>
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+            </div>
+            
+            <div className="space-y-1.5">
+              <Label>Icon Color</Label>
+              <ToggleGroup 
+                type="single" 
+                className="flex flex-wrap justify-start"
+                value={taskForm.iconColor}
+                onValueChange={(value) => {
+                  if (value) {
+                    setTaskForm({
+                      ...taskForm,
+                      iconColor: value
+                    });
+                  }
+                }}
+              >
+                {iconColors.map((item) => (
+                  <ToggleGroupItem 
+                    key={item.color} 
+                    value={item.color}
+                    aria-label={item.name}
+                    className="data-[state=on]:bg-background"
+                  >
+                    <i className={`bx bxs-circle ${item.color} text-xl`}></i>
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="isActive" 
+                checked={taskForm.isActive}
+                onCheckedChange={(checked) => setTaskForm({
+                  ...taskForm,
+                  isActive: checked
+                })}
+              />
+              <label htmlFor="isActive" className="text-sm font-medium leading-none">
+                Active and visible to users
+              </label>
+            </div>
+            
+            <DialogFooter className="mt-6">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setIsTaskDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button 
+                type="submit"
+                disabled={createTaskMutation.isPending || updateTaskMutation.isPending}
+              >
+                {editingTaskId ? (
+                  updateTaskMutation.isPending ? (
+                    <><i className="bx bx-loader-alt animate-spin mr-1"></i> Updating...</>
+                  ) : (
+                    <>Update Task</>
+                  )
+                ) : (
+                  createTaskMutation.isPending ? (
+                    <><i className="bx bx-loader-alt animate-spin mr-1"></i> Creating...</>
+                  ) : (
+                    <>Create Task</>
+                  )
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
