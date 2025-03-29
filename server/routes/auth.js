@@ -109,19 +109,46 @@ router.get('/me', async (req, res) => {
         level: 1,
         xp: 0,
         coins: 1000, // Test bonus
-        wolfRank: 'Wolf Pup'
+        wolfRank: 'Wolf Pup',
+        dailyTapCount: 0,
+        lastTapDate: null
       };
       
-      // Validate with zod schema
-      const validatedData = insertUserSchema.parse(userData);
-      
-      // Insert user
-      const [newUser] = await db
-        .insert(users)
-        .values(validatedData)
-        .returning();
-      
-      return res.status(200).json(newUser);
+      try {
+        // Validate with zod schema
+        const validatedData = insertUserSchema.parse(userData);
+        
+        // Insert user
+        const [newUser] = await db
+          .insert(users)
+          .values(validatedData)
+          .returning();
+        
+        console.log('Test user created successfully:', newUser.id);
+        return res.status(200).json(newUser);
+      } catch (validationError) {
+        console.error('Test user validation error:', validationError);
+        
+        // If there's a validation error, try with only required fields
+        const minimalUserData = {
+          telegramId: telegramUser.id.toString(),
+          username: telegramUser.username || `user${telegramUser.id}`,
+          firstName: telegramUser.first_name,
+          lastName: telegramUser.last_name || '',
+          photoUrl: telegramUser.photo_url || '',
+          referralCode,
+          coins: 1000
+        };
+        
+        // Insert user with minimal fields
+        const [newUser] = await db
+          .insert(users)
+          .values(minimalUserData)
+          .returning();
+        
+        console.log('Test user created with minimal fields:', newUser.id);
+        return res.status(200).json(newUser);
+      }
     }
     
     // User not found and not in development mode with test user

@@ -84,11 +84,14 @@ router.get('/settings', async (req, res) => {
  */
 router.post('/tap', authenticateTelegram, async (req, res) => {
   try {
-    const { telegramId } = req.telegramUser;
+    // Get user data from telegram auth
+    const telegramUser = req.telegramUser;
     
-    if (!telegramId) {
+    if (!telegramUser || !telegramUser.id) {
       return res.status(400).json({ success: false, message: 'Invalid user data' });
     }
+    
+    const telegramId = telegramUser.id.toString();
     
     // Get user by Telegram ID
     const [user] = await db
@@ -97,68 +100,110 @@ router.post('/tap', authenticateTelegram, async (req, res) => {
       .where(eq(users.telegramId, telegramId));
     
     if (!user) {
+      // In development mode, auto-create the user if not found
+      const isDevelopment = process.env.NODE_ENV !== 'production';
+      if (isDevelopment && telegramId === '12345678') {
+        console.log('Development mode: Auto-creating test user for tapping');
+        
+        // Generate referral code for new user
+        const referralCode = Math.random().toString(36).substring(2, 10);
+        
+        // Prepare minimal user data
+        const userData = {
+          telegramId,
+          username: telegramUser.username || `user${telegramId}`,
+          firstName: telegramUser.first_name,
+          lastName: telegramUser.last_name || '',
+          photoUrl: telegramUser.photo_url || '',
+          referralCode,
+          coins: 0,
+          dailyTapCount: 0,
+          lastTapDate: null,
+          level: 1,
+          xp: 0,
+          wolfRank: 'Wolf Pup'
+        };
+        
+        // Insert user with minimal fields
+        const [newUser] = await db
+          .insert(users)
+          .values(userData)
+          .returning();
+        
+        console.log('Test user auto-created for tapping:', newUser.id);
+        
+        // Continue with the newly created user
+        return processTap(newUser, res);
+      }
+      
       return res.status(404).json({ success: false, message: 'User not found' });
     }
     
-    // Check if user has reached daily tap limit
-    const currentDate = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
-    const MAX_DAILY_TAPS = 100;
+    return processTap(user, res);
     
-    if (user.dailyTapCount >= MAX_DAILY_TAPS && user.lastTapDate === currentDate) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'You have reached your daily tapping limit of 100 taps' 
-      });
-    }
-    
-    // Get coin settings for reward amount
-    const [settings] = await db.select().from(coinSettings).limit(1);
-    const coinValue = settings?.coinValue || 5;
-    
-    // Reset counter if it's a new day
-    let newDailyTapCount = user.dailyTapCount;
-    if (user.lastTapDate !== currentDate) {
-      newDailyTapCount = 0;
-    }
-    
-    // Update user's coin balance and tap count
-    const [updatedUser] = await db
-      .update(users)
-      .set({
-        coins: user.coins + coinValue,
-        dailyTapCount: newDailyTapCount + 1,
-        lastTapDate: currentDate
-      })
-      .where(eq(users.id, user.id))
-      .returning();
-    
-    // Create transaction record
-    await db.insert(transactions).values({
-      userId: user.id,
-      amount: coinValue,
-      type: 'tap_reward',
-      description: 'Reward from tapping the coin',
-      status: 'completed'
-    });
-    
-    // Broadcast updated leaderboard to all clients
-    broadcastLeaderboard().catch(err => {
-      console.error('Error broadcasting leaderboard update:', err);
-    });
-    
-    return res.json({
-      success: true,
-      data: {
-        coinValue,
-        newBalance: updatedUser.coins,
-        tapCount: updatedUser.dailyTapCount,
-        dailyLimit: MAX_DAILY_TAPS
-      }
-    });
   } catch (error) {
     console.error('Error processing coin tap:', error);
     return res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
+
+// Helper function to process the tap
+async function processTap(user, res) {
+  // Check if user has reached daily tap limit
+  const currentDate = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
+  const MAX_DAILY_TAPS = 100;
+  
+  if (user.dailyTapCount >= MAX_DAILY_TAPS && user.lastTapDate === currentDate) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'You have reached your daily tapping limit of 100 taps' 
+    });
+  }
+  
+  // Get coin settings for reward amount
+  const [settings] = await db.select().from(coinSettings).limit(1);
+  const coinValue = settings?.coinValue || 5;
+  
+  // Reset counter if it's a new day
+  let newDailyTapCount = user.dailyTapCount || 0;
+  if (user.lastTapDate !== currentDate) {
+    newDailyTapCount = 0;
+  }
+  
+  // Update user's coin balance and tap count
+  const [updatedUser] = await db
+    .update(users)
+    .set({
+      coins: (user.coins || 0) + coinValue,
+      dailyTapCount: newDailyTapCount + 1,
+      lastTapDate: currentDate
+    })
+    .where(eq(users.id, user.id))
+    .returning();
+  
+  // Create transaction record
+  await db.insert(transactions).values({
+    userId: user.id,
+    amount: coinValue,
+    type: 'tap_reward',
+    description: 'Reward from tapping the coin',
+    status: 'completed'
+  });
+  
+  // Broadcast updated leaderboard to all clients
+  broadcastLeaderboard().catch(err => {
+    console.error('Error broadcasting leaderboard update:', err);
+  });
+  
+  return res.json({
+    success: true,
+    data: {
+      coinValue,
+      newBalance: updatedUser.coins,
+      tapCount: updatedUser.dailyTapCount,
+      dailyLimit: MAX_DAILY_TAPS
+    }
+  });
+}
 
 export default router;

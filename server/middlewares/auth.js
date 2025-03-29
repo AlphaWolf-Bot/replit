@@ -32,7 +32,7 @@ export const authenticateTelegram = (req, res, next) => {
     if (isDevelopment && !initData) {
       console.log('Development mode: Using test Telegram user');
       
-      // Mock a test user for development
+      // Mock a test user for development - using a string for id to match expected format
       req.telegramUser = {
         id: '12345678',
         first_name: 'Test',
