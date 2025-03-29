@@ -2,9 +2,56 @@ import express from 'express';
 import { db } from '../db.js';
 import { coinSettings, transactions, users } from '@shared/schema.ts';
 import { authenticateTelegram } from '../middlewares/auth.js';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, sql, desc } from 'drizzle-orm';
+
+// Import WebSocket for broadcasting
+import { WebSocket } from 'ws';
 
 const router = express.Router();
+
+// Function to fetch leaderboard data
+async function getLeaderboardData(limit = 10) {
+  return await db
+    .select({
+      id: users.id,
+      username: users.username,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      photoUrl: users.photoUrl,
+      level: users.level,
+      wolfRank: users.wolfRank,
+      coins: users.coins
+    })
+    .from(users)
+    .orderBy(desc(users.coins))
+    .limit(limit);
+}
+
+// Variable to store WebSocket Server instance
+let wss = null;
+
+// Export a function to set the WebSocket Server from routes.ts
+export function setWebSocketServer(wsServer) {
+  wss = wsServer;
+}
+
+// Function to broadcast leaderboard to all connected clients
+async function broadcastLeaderboard() {
+  if (!wss) return;
+  
+  const leaderboard = await getLeaderboardData();
+  const data = JSON.stringify({
+    type: 'leaderboard_update',
+    data: leaderboard,
+    timestamp: new Date().toISOString()
+  });
+  
+  wss.clients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(data);
+    }
+  });
+}
 
 /**
  * Get the coin settings (publicly accessible)
@@ -92,6 +139,11 @@ router.post('/tap', authenticateTelegram, async (req, res) => {
       type: 'tap_reward',
       description: 'Reward from tapping the coin',
       status: 'completed'
+    });
+    
+    // Broadcast updated leaderboard to all clients
+    broadcastLeaderboard().catch(err => {
+      console.error('Error broadcasting leaderboard update:', err);
     });
     
     return res.json({

@@ -1,14 +1,16 @@
 import express, { type Express } from "express";
 import { createServer, type Server } from "http";
+import { WebSocketServer, WebSocket } from "ws";
 import { authenticateTelegram } from "./middlewares/auth.js";
 import authRoutes from "./routes/auth.js";
 import walletRoutes from "./routes/wallet.js";
 import referralRoutes from "./routes/referrals.js";
-import coinRoutes from "./routes/coin.js";
+import coinRoutes, { setWebSocketServer } from "./routes/coin.js";
 import adminRoutes from "./routes/admin.js";
+import leaderboardRoutes from "./routes/leaderboard.js";
 import { db } from "./db";
 import * as schema from "../shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // API routes
@@ -25,6 +27,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   apiRouter.use("/referrals", authenticateTelegram, referralRoutes);
   apiRouter.use("/coin", coinRoutes);
   apiRouter.use("/admin", adminRoutes);
+  apiRouter.use("/leaderboard", leaderboardRoutes);
   
   // Tasks API
   apiRouter.get("/tasks", authenticateTelegram, async (req, res) => {
@@ -230,5 +233,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api", apiRouter);
   
   const httpServer = createServer(app);
+  
+  // Setup WebSocket server for real-time updates
+  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  
+  // Pass WebSocket server to coin routes for leaderboard broadcasting
+  setWebSocketServer(wss);
+  
+  // Function to fetch leaderboard data
+  async function getLeaderboardData(limit = 10) {
+    return await db
+      .select({
+        id: schema.users.id,
+        username: schema.users.username,
+        firstName: schema.users.firstName,
+        lastName: schema.users.lastName,
+        photoUrl: schema.users.photoUrl,
+        level: schema.users.level,
+        wolfRank: schema.users.wolfRank,
+        coins: schema.users.coins
+      })
+      .from(schema.users)
+      .orderBy(desc(schema.users.coins))
+      .limit(limit);
+  }
+  
+  // Function to broadcast leaderboard to all connected clients
+  async function broadcastLeaderboard() {
+    const leaderboard = await getLeaderboardData();
+    const data = JSON.stringify({
+      type: 'leaderboard_update',
+      data: leaderboard
+    });
+    
+    wss.clients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(data);
+      }
+    });
+  }
+  
+  // Handle WebSocket connections
+  wss.on('connection', (ws) => {
+    console.log('Client connected to WebSocket');
+    
+    // Send initial leaderboard data
+    getLeaderboardData().then(leaderboard => {
+      ws.send(JSON.stringify({
+        type: 'leaderboard_update',
+        data: leaderboard
+      }));
+    });
+    
+    // Handle messages from clients
+    ws.on('message', (message) => {
+      try {
+        const data = JSON.parse(message.toString());
+        console.log('Received WebSocket message:', data);
+        
+        // Handle different message types
+        if (data.type === 'request_leaderboard') {
+          getLeaderboardData(data.limit || 10).then(leaderboard => {
+            ws.send(JSON.stringify({
+              type: 'leaderboard_update',
+              data: leaderboard
+            }));
+          });
+        }
+      } catch (error) {
+        console.error('Error handling WebSocket message:', error);
+      }
+    });
+    
+    // Handle disconnections
+    ws.on('close', () => {
+      console.log('Client disconnected from WebSocket');
+    });
+  });
+  
+  // Setup interval to broadcast leaderboard updates every 30 seconds
+  setInterval(broadcastLeaderboard, 30000);
+  
   return httpServer;
 }

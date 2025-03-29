@@ -15,6 +15,7 @@ import GamesPage from "@/pages/GamesPage";
 import ProfilePage from "@/pages/ProfilePage";
 import SettingsPage from "@/pages/SettingsPage";
 import AdminPage from "@/pages/AdminPage";
+import LeaderboardPage from "@/pages/LeaderboardPage";
 import NotFound from "@/pages/not-found";
 
 // Components
@@ -46,6 +47,7 @@ function App() {
             <Route path="/wallet" component={WalletPage} />
             <Route path="/friends" component={FriendsPage} />
             <Route path="/games" component={GamesPage} />
+            <Route path="/leaderboard" component={LeaderboardPage} />
             <Route path="/profile" component={ProfilePage} />
             <Route path="/settings" component={SettingsPage} />
             <Route path="/admin" component={AdminPage} />

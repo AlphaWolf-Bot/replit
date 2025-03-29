@@ -376,7 +376,7 @@ const MainPage = () => {
             
             <button 
               className="mt-4 text-primary text-sm font-medium w-full text-center"
-              onClick={() => handleNavigation('/friends')}
+              onClick={() => handleNavigation('/leaderboard')}
             >
               View Full Leaderboard
             </button>
