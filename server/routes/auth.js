@@ -3,8 +3,11 @@ import { generateReferralCode } from '../utils/security.js';
 import { db } from '../db.ts';
 import { users, insertUserSchema } from '../../shared/schema.ts';
 import { eq } from 'drizzle-orm';
+import { getWolfRank } from '../../shared/wolfRanks.js';
 
 const router = express.Router();
+// Keep track of the route being processed to avoid double-processing
+const processedRoutes = new Set();
 
 // Auth middleware is applied at the route level
 router.post('/login', async (req, res) => {
@@ -73,6 +76,13 @@ router.post('/login', async (req, res) => {
 
 router.get('/me', async (req, res) => {
   try {
+    // Avoid double-processing this route
+    if (processedRoutes.has(req.originalUrl)) {
+      processedRoutes.delete(req.originalUrl);
+      return;
+    }
+    processedRoutes.add(req.originalUrl);
+    
     const telegramUser = req.telegramUser;
     
     if (!telegramUser) {
@@ -98,6 +108,9 @@ router.get('/me', async (req, res) => {
       // Generate referral code for new user
       const referralCode = generateReferralCode();
       
+      // Get wolf rank for level 1
+      const wolfRankObj = getWolfRank(1);
+      
       // Prepare user data
       const userData = {
         telegramId: telegramUser.id.toString(),
@@ -109,13 +122,12 @@ router.get('/me', async (req, res) => {
         level: 1,
         xp: 0,
         coins: 1000, // Test bonus
-        wolfRank: 'Wolf Pup',
-        dailyTapCount: 0,
-        lastTapDate: null
+        wolfRank: wolfRankObj.wolfRank || 'Wolf Pup',
+        dailyTapCount: 0
       };
       
       try {
-        // Validate with zod schema
+        // Validate with zod schema and ensure all required fields are present
         const validatedData = insertUserSchema.parse(userData);
         
         // Insert user
@@ -137,7 +149,10 @@ router.get('/me', async (req, res) => {
           lastName: telegramUser.last_name || '',
           photoUrl: telegramUser.photo_url || '',
           referralCode,
-          coins: 1000
+          coins: 1000,
+          level: 1,
+          xp: 0,
+          wolfRank: wolfRankObj.wolfRank || 'Wolf Pup'
         };
         
         // Insert user with minimal fields

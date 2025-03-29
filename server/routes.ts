@@ -21,11 +21,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.status(200).json({ status: "ok" });
   });
   
-  // Protected routes - Telegram authentication required
-  apiRouter.use("/auth", authRoutes);
+  // Set up auth routes correctly to avoid duplicate processing
+  // Login route - no authentication
+  apiRouter.post("/auth/login", (req, res) => {
+    authRoutes.handle(req, res);
+  });
+  
+  // Me route - requires authentication
+  apiRouter.get("/auth/me", authenticateTelegram, (req, res) => {
+    authRoutes.handle(req, res);
+  });
+  
+  // Other protected routes
   apiRouter.use("/wallet", authenticateTelegram, walletRoutes);
   apiRouter.use("/referrals", authenticateTelegram, referralRoutes);
-  apiRouter.use("/coin", coinRoutes);
+  apiRouter.use("/coin", authenticateTelegram, coinRoutes);
   apiRouter.use("/admin", adminRoutes);
   apiRouter.use("/leaderboard", leaderboardRoutes);
   
