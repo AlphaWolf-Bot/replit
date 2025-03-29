@@ -14,6 +14,7 @@ import FriendsPage from "@/pages/FriendsPage";
 import GamesPage from "@/pages/GamesPage";
 import ProfilePage from "@/pages/ProfilePage";
 import SettingsPage from "@/pages/SettingsPage";
+import AdminPage from "@/pages/AdminPage";
 import NotFound from "@/pages/not-found";
 
 // Components
@@ -47,12 +48,14 @@ function App() {
             <Route path="/games" component={GamesPage} />
             <Route path="/profile" component={ProfilePage} />
             <Route path="/settings" component={SettingsPage} />
+            <Route path="/admin" component={AdminPage} />
             <Route component={NotFound} />
           </Switch>
         </TelegramWebApp>
       ) : (
         <Switch>
           <Route path="/" component={LandingPage} />
+          <Route path="/admin" component={AdminPage} />
           <Route component={NotFound} />
         </Switch>
       )}

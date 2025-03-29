@@ -2,6 +2,14 @@ import { pgTable, text, serial, integer, boolean, timestamp, date } from "drizzl
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Admin settings tables
+export const coinSettings = pgTable("coin_settings", {
+  id: serial("id").primaryKey(),
+  imageUrl: text("image_url").notNull(),
+  coinValue: integer("coin_value").default(5).notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   telegramId: text("telegram_id").notNull().unique(),
@@ -162,6 +170,11 @@ export const insertUserSocialMediaSchema = createInsertSchema(userSocialMedia).o
   claimedAt: true
 });
 
+export const insertCoinSettingsSchema = createInsertSchema(coinSettings).omit({
+  id: true,
+  updatedAt: true
+});
+
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -192,3 +205,6 @@ export type SocialMedia = typeof socialMedia.$inferSelect;
 
 export type InsertUserSocialMedia = z.infer<typeof insertUserSocialMediaSchema>;
 export type UserSocialMedia = typeof userSocialMedia.$inferSelect;
+
+export type InsertCoinSettings = z.infer<typeof insertCoinSettingsSchema>;
+export type CoinSettings = typeof coinSettings.$inferSelect;

@@ -4,6 +4,8 @@ import { authenticateTelegram } from "./middlewares/auth.js";
 import authRoutes from "./routes/auth.js";
 import walletRoutes from "./routes/wallet.js";
 import referralRoutes from "./routes/referrals.js";
+import coinRoutes from "./routes/coin.js";
+import adminRoutes from "./routes/admin.js";
 import { db } from "./db";
 import * as schema from "../shared/schema";
 import { eq } from "drizzle-orm";
@@ -21,6 +23,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   apiRouter.use("/auth", authRoutes);
   apiRouter.use("/wallet", authenticateTelegram, walletRoutes);
   apiRouter.use("/referrals", authenticateTelegram, referralRoutes);
+  apiRouter.use("/coin", coinRoutes);
+  apiRouter.use("/admin", adminRoutes);
   
   // Tasks API
   apiRouter.get("/tasks", authenticateTelegram, async (req, res) => {

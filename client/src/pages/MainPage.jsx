@@ -1,11 +1,19 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiRequest } from '@/lib/queryClient';
 import ProfileIcon from '@/components/ProfileIcon';
 import SettingsIcon from '@/components/SettingsIcon';
+import { Progress } from '@/components/ui/progress';
+import { useToast } from '@/hooks/use-toast';
 
 const MainPage = () => {
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [tapAnimation, setTapAnimation] = useState(false);
+  const [coinImageUrl, setCoinImageUrl] = useState('/coin-default.svg');
+  const [coinValue, setCoinValue] = useState(5);
   
   // Get user data
   const { data: user } = useQuery({ 
@@ -15,6 +23,61 @@ const MainPage = () => {
   // Get tasks data
   const { data: tasks } = useQuery({
     queryKey: ['/api/tasks'],
+  });
+  
+  // Get coin settings from the API
+  const { data: coinSettings } = useQuery({
+    queryKey: ['/api/coin/settings'],
+    onSuccess: (data) => {
+      if (data?.data) {
+        setCoinImageUrl(data.data.imageUrl);
+        setCoinValue(data.data.coinValue);
+      }
+    }
+  });
+  
+  // Mutation for tapping the coin
+  const tapCoinMutation = useMutation({
+    mutationFn: () => apiRequest('/api/coin/tap', { method: 'POST' }),
+    onSuccess: (data) => {
+      if (data?.success && data?.data) {
+        // Show toast notification
+        toast({
+          title: 'Coins Added!',
+          description: `You earned ${data.data.coinValue} coins.`,
+        });
+        
+        // Trigger the tap animation
+        setTapAnimation(true);
+        setTimeout(() => setTapAnimation(false), 500);
+        
+        // Refresh user data
+        queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
+      } else {
+        // Handle unexpected response format
+        toast({
+          title: 'Something went wrong',
+          description: 'Could not process your reward. Try again later.',
+          variant: 'destructive'
+        });
+      }
+    },
+    onError: (error) => {
+      // Check if we hit the daily limit
+      if (error?.message?.includes('daily tapping limit')) {
+        toast({
+          title: 'Daily Limit Reached',
+          description: 'You have reached your daily tapping limit of 100 taps. Come back tomorrow!',
+          variant: 'default'
+        });
+      } else {
+        toast({
+          title: 'Error',
+          description: error.message || 'Failed to tap the coin. Try again later.',
+          variant: 'destructive'
+        });
+      }
+    }
   });
   
   const dailyTasks = tasks?.filter(task => task.type === 'daily') || [];
@@ -117,42 +180,74 @@ const MainPage = () => {
       
       {/* Content Area */}
       <main className="flex-1 p-4 overflow-auto">
-        {/* Tap-to-Earn Wolf Coin */}
-        <section className="mb-6">
-          <div className="bg-gradient-to-r from-primary to-accent rounded-xl shadow-md p-5 relative overflow-hidden">
-            <div className="absolute top-2 right-3 bg-white bg-opacity-25 rounded-full px-3 py-1 text-xs text-white font-medium">
-              {user?.dailyTapCount || 0}/100 Taps
-            </div>
-            <div className="flex flex-col items-center justify-center">
-              <button 
-                className="tap-coin relative w-28 h-28 mb-2 transform transition-transform duration-200 active:scale-95 focus:outline-none"
-                onClick={() => {
-                  // This would be replaced with a real API call in production
-                  const currentCount = user?.dailyTapCount || 0;
-                  if (currentCount < 100) {
-                    // In a real implementation, this would call an API to update the tap count
-                    // queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
-                  }
-                }}
-                disabled={user?.dailyTapCount >= 100}
-              >
-                <div className="absolute inset-0 bg-yellow-400 rounded-full animate-pulse opacity-20"></div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <svg width="100" height="100" viewBox="0 0 100 100" className="wolf-coin">
-                    <circle cx="50" cy="50" r="45" fill="#FFD700" stroke="#B8860B" strokeWidth="2" />
-                    <circle cx="50" cy="50" r="40" fill="#FFDF00" />
-                    {/* Wolf silhouette */}
-                    <path d="M35,30 C30,32 28,40 30,45 C31,47 28,50 30,52 C32,54 34,55 35,55 C36,55 38,54 40,52 C42,50 44,48 45,45 C46,42 47,40 50,40 C53,40 54,42 55,45 C56,48 58,50 60,52 C62,54 64,55 65,55 C66,55 68,54 70,52 C72,50 69,47 70,45 C72,40 70,32 65,30 C60,28 55,32 50,35 C45,32 40,28 35,30 Z" fill="#8B4513" />
-                    <circle cx="40" cy="42" r="3" fill="#000" />
-                    <circle cx="60" cy="42" r="3" fill="#000" />
-                    <path d="M45,48 C46,50 48,52 50,52 C52,52 54,50 55,48" stroke="#000" strokeWidth="1.5" fill="none" />
-                  </svg>
-                </div>
-              </button>
-              <h3 className="text-white font-bold text-lg mb-1">Tap to Earn</h3>
-              <p className="text-white text-sm text-center">Tap the Wolf Coin to earn rewards. Limited to 100 taps per day!</p>
+        {/* Tap-to-Earn Wolf Coin (Centered without background) */}
+        <section className="mb-6 mt-10 flex flex-col items-center">
+          <div className="text-center mb-5">
+            <h3 className="text-lg font-bold mb-1">Tap to Earn Coins</h3>
+            <div className="flex items-center justify-center">
+              <span className="text-xs text-muted-foreground mr-2">
+                Today's taps: <span className="font-medium text-primary">{user?.dailyTapCount || 0}/100</span>
+              </span>
+              <div className="w-16 h-1.5 bg-background rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-primary"
+                  style={{ width: `${(user?.dailyTapCount || 0) / 100 * 100}%` }}
+                ></div>
+              </div>
             </div>
           </div>
+
+          {/* Center Wolf Coin */}
+          <button 
+            className={`tap-coin relative w-36 h-36 mb-4 transform transition-all duration-200 
+                      ${tapAnimation ? 'scale-95' : 'hover:scale-105'} 
+                      focus:outline-none`}
+            onClick={() => {
+              const currentCount = user?.dailyTapCount || 0;
+              if (currentCount < 100 && !tapCoinMutation.isPending) {
+                tapCoinMutation.mutate();
+              }
+            }}
+            disabled={user?.dailyTapCount >= 100 || tapCoinMutation.isPending}
+          >
+            <div className="absolute inset-0 rounded-full animate-pulse-slow opacity-20"></div>
+            <div className="wolf-coin absolute inset-0 flex items-center justify-center">
+              {coinSettings?.data?.imageUrl ? (
+                <img 
+                  src={coinSettings.data.imageUrl} 
+                  alt="Wolf Coin" 
+                  className="w-full h-full object-contain" 
+                />
+              ) : (
+                <svg width="140" height="140" viewBox="0 0 100 100" className="drop-shadow-lg">
+                  <circle cx="50" cy="50" r="45" fill="#FFD700" stroke="#B8860B" strokeWidth="2" />
+                  <circle cx="50" cy="50" r="40" fill="#FFDF00" />
+                  {/* Wolf silhouette */}
+                  <path d="M35,30 C30,32 28,40 30,45 C31,47 28,50 30,52 C32,54 34,55 35,55 C36,55 38,54 40,52 C42,50 44,48 45,45 C46,42 47,40 50,40 C53,40 54,42 55,45 C56,48 58,50 60,52 C62,54 64,55 65,55 C66,55 68,54 70,52 C72,50 69,47 70,45 C72,40 70,32 65,30 C60,28 55,32 50,35 C45,32 40,28 35,30 Z" fill="#8B4513" />
+                  <circle cx="40" cy="42" r="3" fill="#000" />
+                  <circle cx="60" cy="42" r="3" fill="#000" />
+                  <path d="M45,48 C46,50 48,52 50,52 C52,52 54,50 55,48" stroke="#000" strokeWidth="1.5" fill="none" />
+                </svg>
+              )}
+            </div>
+            
+            {tapCoinMutation.isPending && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin-slow"></div>
+              </div>
+            )}
+            
+            {tapAnimation && (
+              <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 text-lg font-bold text-primary animate-bounce-soft">
+                +{coinValue} <i className="bx bx-coin-stack"></i>
+              </div>
+            )}
+          </button>
+          
+          <p className="text-sm text-center text-muted-foreground px-8">
+            Tap the Wolf Coin to earn <span className="text-primary font-medium">{coinValue}</span> coins per tap! 
+            <br />Limited to 100 taps per day.
+          </p>
         </section>
         
         {/* Daily Tasks */}
