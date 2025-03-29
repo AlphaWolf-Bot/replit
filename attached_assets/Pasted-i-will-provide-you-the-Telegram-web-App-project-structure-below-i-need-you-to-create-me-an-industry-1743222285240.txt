@@ -1,0 +1,60 @@
+i will provide you the Telegram web App project structure below, i need you to create me an industry ready code for all the files completely.My website url is "alphawolf.click" , when it is opened normally in a browser , it should show my telegram web app info and a play button which leads to my tg bot. the telegram web app also uses same domain , so do changes accordingly . Web App discription: 1.Main page: Include user profile logo , next to it a progress bar with 100 levels each with a distinct wolf name , and a settings icon , in the page centre a coin png which works as a tap to earn which is limited to 100 taps per day, and below that buttons to other remaining pages , the settings icon and profile icon should lead to their pages. 2.Earn page: include social media links for users to follow and subscribe , which gives 50 coins when they complete the tasks. and these links can be changed in the admin panel. make sure the 50 coins is rewarded to users when the task is completed ,i.e after 2 mins. and it should work only once in 24 hours. link the coins to users coin balance. 3.Wallet page: it should include users coin balance and 1000 coins is equal to 1inr. the users can withdraw it to their upi account. 4. friends page: generates unique link to each users to invite their friends ,, each successful invite rewards 100 coins. 5. Games Page: create 4 games yourself and include space for ads. users get points by playing the games. make sure everything is linked properly along with the backend and database. Don't forget about admin panel and space for ads. UI/UX should be gold dark and wolf themed. 
+Project structure: alphawolf/
+├── frontend/            # React frontend
+│   ├── public/
+│   │   ├── wolf-logo.png        # Logo
+│   │   ├── wolf-bg.jpg          # Background
+│   │   └── robots.txt           # SEO
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── TelegramWebApp.jsx  
+│   │   │   ├── BackButton.jsx  
+│   │   │   ├── WolfLoader.jsx  
+│   │   │   ├── ProfileIcon.jsx  
+│   │   │   ├── SettingsIcon.jsx  
+│   │   ├── pages/
+│   │   │   ├── LandingPage.jsx  
+│   │   │   ├── MainPage.jsx  
+│   │   │   ├── EarnPage.jsx  
+│   │   │   ├── WalletPage.jsx  
+│   │   │   ├── FriendsPage.jsx  
+│   │   │   ├── GamesPage.jsx  
+│   │   │   ├── ProfilePage.jsx  
+│   │   │   ├── SettingsPage.jsx  
+│   │   ├── styles/
+│   │   │   ├── theme.css  
+│   │   │   ├── animations.css  
+│   │   ├── App.jsx  
+│   │   ├── main.jsx  
+│   ├── vercel.json  
+│   └── package.json  
+│
+├── backend/             # Node.js backend
+│   ├── src/
+│   │   ├── routes/
+│   │   │   ├── auth.js  
+│   │   │   ├── wallet.js  
+│   │   │   ├── referrals.js  
+│   │   │   ├── pack.js  
+│   │   │   ├── admin.js  
+│   │   ├── middlewares/
+│   │   │   ├── auth.js  
+│   │   ├── utils/
+│   │   │   ├── security.js  
+│   │   │   ├── supabase.js  
+│   │   ├── validators/
+│   │   │   ├── schemas.js  
+│   │   ├── index.js  
+│   ├── package.json  
+│   ├── Dockerfile  
+│
+└── supabase/            # Database & Storage
+    ├── migrations/
+    │   ├── 0001_initial_schema.sql  
+    │   ├── 0002_rls_policies.sql  
+    ├── functions/
+    │   ├── claim_rewards.sql  
+    ├── storage/
+    │   ├── wolf-assets/
+    │   │   ├── alpha-badges/
+    │   │   ├── pack-backgrounds/
