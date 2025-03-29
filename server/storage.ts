@@ -1,0 +1,1 @@
+export { storage, type IStorage } from './db_storage';

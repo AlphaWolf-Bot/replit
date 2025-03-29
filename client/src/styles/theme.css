@@ -1,0 +1,63 @@
+:root {
+  font-family: 'Montserrat', system-ui, sans-serif;
+}
+
+/* Wolf-themed color scheme */
+.wolf-theme {
+  --wolf-primary: #2B3139;
+  --wolf-secondary: #1A1C22;
+  --wolf-accent: #FF6B2C;
+  --wolf-purple: #734BFF;
+  --wolf-success: #10B981;
+  --wolf-error: #EF4444;
+  --wolf-gray: #9CA3AF;
+}
+
+/* Custom font settings */
+.font-rajdhani {
+  font-family: 'Rajdhani', sans-serif;
+}
+
+.font-montserrat {
+  font-family: 'Montserrat', sans-serif;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--wolf-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--wolf-primary);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--wolf-accent);
+}
+
+/* Telegram Mini App specific adjustments */
+body.telegram-webapp {
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.telegram-webapp #root {
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.telegram-webapp .page-content {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
