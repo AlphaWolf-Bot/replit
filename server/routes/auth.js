@@ -15,7 +15,7 @@ router.post('/login', async (req, res) => {
     const telegramUser = req.telegramUser;
     
     if (!telegramUser) {
-      return res.status(401).json({ message: 'Unauthorized: Missing user data' });
+      return res.status(401).json({ success: false, message: 'Unauthorized: Missing user data' });
     }
     
     // Check if user already exists
@@ -25,8 +25,11 @@ router.post('/login', async (req, res) => {
       .where(eq(users.telegramId, telegramUser.id.toString()));
     
     if (existingUser) {
-      // Return existing user
-      return res.status(200).json(existingUser);
+      // Return existing user with standardized success response
+      return res.status(200).json({
+        success: true,
+        data: existingUser
+      });
     }
     
     // Create new user
@@ -67,21 +70,20 @@ router.post('/login', async (req, res) => {
       .values(validatedData)
       .returning();
     
-    res.status(201).json(newUser);
+    res.status(201).json({
+      success: true,
+      data: newUser
+    });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ message: 'Internal server error during login' });
+    res.status(500).json({ success: false, message: 'Internal server error during login' });
   }
 });
 
 router.get('/me', async (req, res) => {
   try {
-    // Avoid double-processing this route
-    if (processedRoutes.has(req.originalUrl)) {
-      processedRoutes.delete(req.originalUrl);
-      return;
-    }
-    processedRoutes.add(req.originalUrl);
+    // Removing double-processing prevention as it's causing issues
+    console.log('Handling /me request');
     
     const telegramUser = req.telegramUser;
     

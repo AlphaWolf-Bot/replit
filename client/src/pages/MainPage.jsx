@@ -67,9 +67,13 @@ const MainPage = () => {
   const tapCoinMutation = useMutation({
     mutationFn: async () => {
       const response = await apiRequest('/api/coin/tap', { method: 'POST' });
-      return await response.json();
+      console.log("Tap response:", response);
+      const data = await response.json();
+      console.log("Tap response data:", data);
+      return data;
     },
     onSuccess: (data) => {
+      console.log("Tap success data:", data);
       if (data?.success && data?.data) {
         // Show toast notification
         toast({

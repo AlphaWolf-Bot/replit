@@ -163,6 +163,8 @@ async function processTap(user, res) {
     });
   }
   
+  console.log("Processing tap for user:", user.id, "Current coins:", user.coins, "Current XP:", user.xp);
+  
   // Get coin settings for reward amount
   const [settings] = await db.select().from(coinSettings).limit(1);
   const coinValue = settings?.coinValue || 5;
