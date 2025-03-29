@@ -147,6 +147,9 @@ router.post('/tap', authenticateTelegram, async (req, res) => {
   }
 });
 
+// Import wolf ranks utility
+import { getWolfRank, getNextLevelXP } from '../../shared/wolfRanks.js';
+
 // Helper function to process the tap
 async function processTap(user, res) {
   // Check if user has reached daily tap limit
@@ -170,40 +173,120 @@ async function processTap(user, res) {
     newDailyTapCount = 0;
   }
   
-  // Update user's coin balance and tap count
-  const [updatedUser] = await db
-    .update(users)
-    .set({
-      coins: (user.coins || 0) + coinValue,
-      dailyTapCount: newDailyTapCount + 1,
-      lastTapDate: currentDate
-    })
-    .where(eq(users.id, user.id))
-    .returning();
+  // Calculate XP gain - each tap gives a small amount of XP
+  const xpGain = 5; // 5 XP per tap
+  const currentXP = user.xp || 0;
+  const newXP = currentXP + xpGain;
   
-  // Create transaction record
-  await db.insert(transactions).values({
-    userId: user.id,
-    amount: coinValue,
-    type: 'tap_reward',
-    description: 'Reward from tapping the coin',
-    status: 'completed'
-  });
+  // Get current level and check if we need to level up
+  const currentLevel = user.level || 1;
+  let newLevel = currentLevel;
+  let leveledUp = false;
+  let nextLevelXP = getNextLevelXP(currentLevel);
   
-  // Broadcast updated leaderboard to all clients
-  broadcastLeaderboard().catch(err => {
-    console.error('Error broadcasting leaderboard update:', err);
-  });
-  
-  return res.json({
-    success: true,
-    data: {
-      coinValue,
-      newBalance: updatedUser.coins,
-      tapCount: updatedUser.dailyTapCount,
-      dailyLimit: MAX_DAILY_TAPS
-    }
-  });
+  // Check if user has reached next level
+  if (newXP >= nextLevelXP) {
+    newLevel = currentLevel + 1;
+    leveledUp = true;
+    
+    // Get new wolf rank based on level
+    const wolfRankObj = getWolfRank(newLevel);
+    const newWolfRank = wolfRankObj.wolfRank;
+    
+    // Update user with new level and wolf rank
+    const [updatedUser] = await db
+      .update(users)
+      .set({
+        coins: (user.coins || 0) + coinValue,
+        dailyTapCount: newDailyTapCount + 1,
+        lastTapDate: currentDate,
+        level: newLevel,
+        xp: newXP,
+        wolfRank: newWolfRank
+      })
+      .where(eq(users.id, user.id))
+      .returning();
+    
+    // Create transaction record
+    await db.insert(transactions).values({
+      userId: user.id,
+      amount: coinValue,
+      type: 'tap_reward',
+      description: 'Reward from tapping the coin',
+      status: 'completed'
+    });
+    
+    // Broadcast updated leaderboard to all clients
+    broadcastLeaderboard().catch(err => {
+      console.error('Error broadcasting leaderboard update:', err);
+    });
+    
+    return res.json({
+      success: true,
+      data: {
+        coinValue,
+        newBalance: updatedUser.coins,
+        tapCount: updatedUser.dailyTapCount,
+        dailyLimit: MAX_DAILY_TAPS,
+        levelUp: {
+          leveledUp: true,
+          oldLevel: currentLevel,
+          newLevel: newLevel,
+          oldWolfRank: user.wolfRank,
+          newWolfRank: newWolfRank
+        },
+        xp: {
+          gained: xpGain,
+          current: newXP,
+          nextLevel: getNextLevelXP(newLevel)
+        }
+      }
+    });
+  } else {
+    // No level up, just update XP and coins
+    const [updatedUser] = await db
+      .update(users)
+      .set({
+        coins: (user.coins || 0) + coinValue,
+        dailyTapCount: newDailyTapCount + 1,
+        lastTapDate: currentDate,
+        xp: newXP
+      })
+      .where(eq(users.id, user.id))
+      .returning();
+    
+    // Create transaction record
+    await db.insert(transactions).values({
+      userId: user.id,
+      amount: coinValue,
+      type: 'tap_reward',
+      description: 'Reward from tapping the coin',
+      status: 'completed'
+    });
+    
+    // Broadcast updated leaderboard to all clients
+    broadcastLeaderboard().catch(err => {
+      console.error('Error broadcasting leaderboard update:', err);
+    });
+    
+    return res.json({
+      success: true,
+      data: {
+        coinValue,
+        newBalance: updatedUser.coins,
+        tapCount: updatedUser.dailyTapCount,
+        dailyLimit: MAX_DAILY_TAPS,
+        levelUp: {
+          leveledUp: false
+        },
+        xp: {
+          gained: xpGain,
+          current: newXP,
+          nextLevel: nextLevelXP
+        }
+      }
+    });
+  }
 }
 
 export default router;

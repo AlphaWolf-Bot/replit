@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
@@ -6,6 +6,7 @@ import ProfileIcon from '@/components/ProfileIcon';
 import SettingsIcon from '@/components/SettingsIcon';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
+import confetti from 'canvas-confetti';
 
 const MainPage = () => {
   const [, setLocation] = useLocation();
@@ -15,9 +16,31 @@ const MainPage = () => {
   const [coinImageUrl, setCoinImageUrl] = useState('/coin-default.svg');
   const [coinValue, setCoinValue] = useState(5);
   
+  // State for level up animation
+  const [levelUpAnimation, setLevelUpAnimation] = useState(false);
+  const [levelUpDetails, setLevelUpDetails] = useState(null);
+  const confettiCanvasRef = useRef(null);
+  
+  // State for first login animation
+  const [isFirstLogin, setIsFirstLogin] = useState(false);
+  
   // Get user data
   const { data: user } = useQuery({ 
     queryKey: ['/api/auth/me'],
+    onSuccess: (data) => {
+      // Check if it's the user's first login by looking at createdAt date
+      // If created in the last minute, show welcome animation
+      if (data?.user?.createdAt) {
+        const createdTime = new Date(data.user.createdAt).getTime();
+        const currentTime = new Date().getTime();
+        const timeDiff = currentTime - createdTime;
+        
+        // If account created less than 1 minute ago, consider it first login
+        if (timeDiff < 60 * 1000) {
+          setIsFirstLogin(true);
+        }
+      }
+    }
   });
   
   // Get tasks data
@@ -49,6 +72,39 @@ const MainPage = () => {
           title: 'Coins Added!',
           description: `You earned ${data.data.coinValue} coins. New balance: ${data.data.newBalance}`,
         });
+        
+        // Additional XP notification
+        if (data.data.xp) {
+          toast({
+            title: 'XP Gained!',
+            description: `You earned ${data.data.xp.gained} XP`,
+          });
+        }
+        
+        // Check if user leveled up
+        if (data.data.levelUp && data.data.levelUp.leveledUp) {
+          setLevelUpDetails({
+            oldLevel: data.data.levelUp.oldLevel,
+            newLevel: data.data.levelUp.newLevel,
+            oldWolfRank: data.data.levelUp.oldWolfRank,
+            newWolfRank: data.data.levelUp.newWolfRank
+          });
+          
+          setLevelUpAnimation(true);
+          
+          // Show level up toast
+          toast({
+            title: '🎉 Level Up!',
+            description: `You reached level ${data.data.levelUp.newLevel}! New rank: ${data.data.levelUp.newWolfRank}`,
+            variant: 'success',
+          });
+          
+          // Hide level up animation after 3 seconds
+          setTimeout(() => {
+            setLevelUpAnimation(false);
+            setLevelUpDetails(null);
+          }, 3000);
+        }
         
         // Trigger the tap animation
         setTapAnimation(true);
@@ -155,6 +211,55 @@ const MainPage = () => {
   const handleNavigation = (path) => {
     setLocation(path);
   };
+  
+  // Effect to fire confetti when level up occurs
+  useEffect(() => {
+    if (levelUpAnimation && levelUpDetails) {
+      // Trigger confetti animation
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#FF6B2C', '#FFD700', '#734BFF', '#10B981']
+      });
+    }
+  }, [levelUpAnimation, levelUpDetails]);
+  
+  // Effect to fire welcome confetti for first-time users
+  useEffect(() => {
+    if (isFirstLogin) {
+      // Trigger welcome confetti animation with more celebratory effects
+      setTimeout(() => {
+        // First burst
+        confetti({
+          particleCount: 150,
+          spread: 90,
+          origin: { y: 0.6, x: 0.4 },
+          colors: ['#FF6B2C', '#FFD700', '#734BFF']
+        });
+        
+        // Second burst, slightly delayed
+        setTimeout(() => {
+          confetti({
+            particleCount: 150,
+            spread: 90,
+            origin: { y: 0.6, x: 0.6 },
+            colors: ['#10B981', '#FFD700', '#734BFF']
+          });
+        }, 300);
+        
+        // Show welcome toast
+        toast({
+          title: '🐺 Welcome to Alpha Wolf!',
+          description: 'Start tapping the coin to earn rewards and climb the ranks!',
+          variant: 'success',
+        });
+        
+        // Reset first login flag
+        setIsFirstLogin(false);
+      }, 1000);
+    }
+  }, [isFirstLogin, toast]);
   
   return (
     <div id="main-page" className="flex-1 flex flex-col">
@@ -387,6 +492,53 @@ const MainPage = () => {
           </div>
         </section>
       </main>
+      
+      {/* Level Up Animation Overlay */}
+      {levelUpAnimation && levelUpDetails && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-60">
+          <div className="bg-card rounded-xl shadow-lg p-6 max-w-xs mx-auto text-center animate-bounce-in">
+            <div className="mb-4">
+              <i className="bx bx-crown text-yellow-500 text-5xl animate-pulse"></i>
+            </div>
+            <h2 className="text-2xl font-bold text-primary mb-2">Level Up!</h2>
+            <p className="mb-4">You've advanced from Level {levelUpDetails.oldLevel} to Level {levelUpDetails.newLevel}</p>
+            
+            <div className="bg-card rounded-lg p-3 mb-4 border border-primary">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <div className="w-10 h-10 rounded-full bg-primary bg-opacity-20 flex items-center justify-center mr-2">
+                    <i className="bx bx-user text-primary"></i>
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm text-muted-foreground">Old Rank</p>
+                    <p className="font-medium">{levelUpDetails.oldWolfRank}</p>
+                  </div>
+                </div>
+                <i className="bx bx-right-arrow-alt text-2xl text-muted-foreground"></i>
+                <div className="flex items-center">
+                  <div className="w-10 h-10 rounded-full bg-primary bg-opacity-20 flex items-center justify-center mr-2">
+                    <i className="bx bx-crown text-primary"></i>
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm text-muted-foreground">New Rank</p>
+                    <p className="font-medium">{levelUpDetails.newWolfRank}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <button 
+              className="bg-primary text-white px-6 py-2 rounded-full w-full hover:bg-primary/90 transition-colors"
+              onClick={() => {
+                setLevelUpAnimation(false);
+                setLevelUpDetails(null);
+              }}
+            >
+              Continue
+            </button>
+          </div>
+        </div>
+      )}
       
       {/* Navigation Bar */}
       <nav className="bg-card px-2 py-3 shadow-lg">

@@ -1,12 +1,12 @@
 // Import wolf levels
-const wolfLevels = require('./wolfLevels');
+import wolfLevels from './wolfLevels.js';
 
 /**
  * Gets the wolf rank for a given user level
  * @param {number} level - User level (1-100)
  * @returns {object} Wolf rank object with rank name and other details
  */
-function getWolfRank(level) {
+export function getWolfRank(level) {
   // Ensure level is within bounds
   const boundedLevel = Math.max(1, Math.min(100, level));
   
@@ -22,7 +22,7 @@ function getWolfRank(level) {
  * @param {number} currentLevel - User's current level (1-99)
  * @returns {number} XP required for the next level
  */
-function getNextLevelXP(currentLevel) {
+export function getNextLevelXP(currentLevel) {
   // Ensure level is within bounds
   const boundedLevel = Math.max(1, Math.min(99, currentLevel));
   
@@ -40,7 +40,7 @@ function getNextLevelXP(currentLevel) {
  * @param {number} currentXP - User's current XP
  * @returns {number} Progress percentage (0-100)
  */
-function getLevelProgress(currentLevel, currentXP) {
+export function getLevelProgress(currentLevel, currentXP) {
   // Ensure level is within bounds
   const boundedLevel = Math.max(1, Math.min(99, currentLevel));
   
@@ -64,13 +64,6 @@ function getLevelProgress(currentLevel, currentXP) {
  * Get all wolf ranks
  * @returns {Array} Array of all wolf rank objects
  */
-function getAllWolfRanks() {
+export function getAllWolfRanks() {
   return wolfLevels;
 }
-
-module.exports = {
-  getWolfRank,
-  getNextLevelXP,
-  getLevelProgress,
-  getAllWolfRanks
-};

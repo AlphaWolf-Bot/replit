@@ -125,4 +125,4 @@ const wolfLevels = [
   { level: 100, wolfRank: "Alpha Supreme", xpRequired: 457200, reward: 1000 }
 ];
 
-module.exports = wolfLevels;
+export default wolfLevels;

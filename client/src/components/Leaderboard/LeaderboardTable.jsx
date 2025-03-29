@@ -28,7 +28,9 @@ const LeaderboardTable = () => {
     newSocket.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        if (data.type === 'leaderboard' && Array.isArray(data.data)) {
+        console.log('Received WebSocket data:', data);
+        
+        if (data.type === 'leaderboard_update' && Array.isArray(data.data)) {
           setLeaderboard(data.data);
           setHasNewData(true);
           
@@ -36,8 +38,6 @@ const LeaderboardTable = () => {
           setTimeout(() => {
             setHasNewData(false);
           }, 2000);
-        } else {
-          console.log('Received WebSocket data:', data);
         }
       } catch (err) {
         console.error('Error parsing WebSocket message:', err);
