@@ -12,9 +12,12 @@ const WalletPage = () => {
   const [showWithdrawForm, setShowWithdrawForm] = useState(false);
   
   // Get user data
-  const { data: user } = useQuery({ 
+  const { data: userData } = useQuery({ 
     queryKey: ['/api/auth/me'],
   });
+  
+  // Extract user from the response
+  const user = userData?.success ? userData.data : null;
   
   // Get transaction history
   const { data: transactions } = useQuery({

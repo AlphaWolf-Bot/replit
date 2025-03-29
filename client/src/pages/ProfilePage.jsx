@@ -11,9 +11,12 @@ const ProfilePage = () => {
   const [activeTab, setActiveTab] = useState('overview');
   
   // Get user data
-  const { data: user } = useQuery({ 
+  const { data: userData } = useQuery({ 
     queryKey: ['/api/auth/me'],
   });
+  
+  // Extract user from the response
+  const user = userData?.success ? userData.data : null;
   
   // Get tasks completion data
   const { data: tasks } = useQuery({

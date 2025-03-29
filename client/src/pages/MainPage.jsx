@@ -26,13 +26,13 @@ const MainPage = () => {
   const [isFirstLogin, setIsFirstLogin] = useState(false);
   
   // Get user data
-  const { data: user } = useQuery({ 
+  const { data: userData } = useQuery({ 
     queryKey: ['/api/auth/me'],
-    onSuccess: (data) => {
+    onSuccess: (responseData) => {
       // Check if it's the user's first login by looking at createdAt date
       // If created in the last minute, show welcome animation
-      if (data?.user?.createdAt) {
-        const createdTime = new Date(data.user.createdAt).getTime();
+      if (responseData?.success && responseData?.data?.createdAt) {
+        const createdTime = new Date(responseData.data.createdAt).getTime();
         const currentTime = new Date().getTime();
         const timeDiff = currentTime - createdTime;
         
@@ -43,6 +43,9 @@ const MainPage = () => {
       }
     }
   });
+  
+  // Extract user from the response
+  const user = userData?.success ? userData.data : null;
   
   // Get tasks data
   const { data: tasks } = useQuery({

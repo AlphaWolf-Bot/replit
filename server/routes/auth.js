@@ -86,7 +86,7 @@ router.get('/me', async (req, res) => {
     const telegramUser = req.telegramUser;
     
     if (!telegramUser) {
-      return res.status(401).json({ message: 'Unauthorized: Missing user data' });
+      return res.status(401).json({ success: false, message: 'Unauthorized: Missing user data' });
     }
     
     // Find existing user
@@ -95,9 +95,12 @@ router.get('/me', async (req, res) => {
       .from(users)
       .where(eq(users.telegramId, telegramUser.id.toString()));
     
-    // If user exists, return it
+    // If user exists, return it with standardized success response
     if (user) {
-      return res.status(200).json(user);
+      return res.status(200).json({ 
+        success: true,
+        data: user 
+      });
     }
     
     // If in development and using test user, create the user
@@ -137,7 +140,10 @@ router.get('/me', async (req, res) => {
           .returning();
         
         console.log('Test user created successfully:', newUser.id);
-        return res.status(200).json(newUser);
+        return res.status(200).json({ 
+          success: true,
+          data: newUser 
+        });
       } catch (validationError) {
         console.error('Test user validation error:', validationError);
         
@@ -162,15 +168,18 @@ router.get('/me', async (req, res) => {
           .returning();
         
         console.log('Test user created with minimal fields:', newUser.id);
-        return res.status(200).json(newUser);
+        return res.status(200).json({ 
+          success: true,
+          data: newUser 
+        });
       }
     }
     
     // User not found and not in development mode with test user
-    return res.status(404).json({ message: 'User not found' });
+    return res.status(404).json({ success: false, message: 'User not found' });
   } catch (error) {
     console.error('Get user error:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 
