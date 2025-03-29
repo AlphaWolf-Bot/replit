@@ -256,3 +256,31 @@ export type Badge = typeof badges.$inferSelect;
 
 export type InsertUserBadge = z.infer<typeof insertUserBadgeSchema>;
 export type UserBadge = typeof userBadges.$inferSelect;
+
+// Advertisement schema
+export const advertisements = pgTable("advertisements", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  placement: text("placement").notNull(), // header, footer, games, earn, etc.
+  type: text("type").notNull().default("image"), // image, html, script
+  imageUrl: text("image_url"),
+  linkUrl: text("link_url"),
+  altText: text("alt_text"),
+  htmlContent: text("html_content"),
+  scriptContent: text("script_content"),
+  isActive: boolean("is_active").notNull().default(true),
+  priority: integer("priority").notNull().default(0),
+  startDate: timestamp("start_date"),
+  endDate: timestamp("end_date"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertAdvertisementSchema = createInsertSchema(advertisements).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+
+export type InsertAdvertisement = z.infer<typeof insertAdvertisementSchema>;
+export type Advertisement = typeof advertisements.$inferSelect;

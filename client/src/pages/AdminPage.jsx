@@ -45,6 +45,20 @@ const AdminPage = () => {
   const [coinImageUrl, setCoinImageUrl] = useState('');
   const [coinValue, setCoinValue] = useState(5);
   
+  // State for advertisement form
+  const [adForm, setAdForm] = useState({
+    name: '',
+    placement: 'header',
+    type: 'image',
+    imageUrl: '',
+    linkUrl: '',
+    altText: '',
+    htmlContent: '',
+    scriptContent: '',
+    isActive: true,
+    priority: 0
+  });
+  
   // State for social media form
   const [socialMediaForm, setSocialMediaForm] = useState({
     platform: '',
@@ -77,6 +91,9 @@ const AdminPage = () => {
   
   // State for task dialog
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
+  
+  // State for editing advertisement
+  const [editingAdId, setEditingAdId] = useState(null);
   
   // Get coin settings
   const { data: coinSettings } = useQuery({
@@ -112,6 +129,11 @@ const AdminPage = () => {
   // Get all tasks
   const { data: tasks } = useQuery({
     queryKey: ['/api/admin/tasks']
+  });
+  
+  // Get all advertisements
+  const { data: ads } = useQuery({
+    queryKey: ['/api/ads/all']
   });
   
   // Mutation for updating coin settings
@@ -269,6 +291,135 @@ const AdminPage = () => {
     }
   });
   
+  // Mutation for creating an advertisement
+  const createAdMutation = useMutation({
+    mutationFn: (data) => apiRequest('/api/ads', {
+      method: 'POST',
+      data
+    }),
+    onSuccess: () => {
+      toast({
+        title: 'Advertisement Created',
+        description: 'The advertisement has been created successfully.'
+      });
+      
+      // Reset form
+      setAdForm({
+        name: '',
+        placement: 'header',
+        type: 'image',
+        imageUrl: '',
+        linkUrl: '',
+        altText: '',
+        htmlContent: '',
+        scriptContent: '',
+        isActive: true,
+        priority: 0
+      });
+      
+      // Refresh data
+      queryClient.invalidateQueries({ queryKey: ['/api/ads/all'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/ads'] });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to create advertisement.',
+        variant: 'destructive'
+      });
+    }
+  });
+  
+  // Mutation for updating an advertisement
+  const updateAdMutation = useMutation({
+    mutationFn: ({ id, data }) => apiRequest(`/api/ads/${id}`, {
+      method: 'PUT',
+      data
+    }),
+    onSuccess: () => {
+      toast({
+        title: 'Advertisement Updated',
+        description: 'The advertisement has been updated successfully.'
+      });
+      
+      // Reset editing state
+      setEditingAdId(null);
+      
+      // Reset form
+      setAdForm({
+        name: '',
+        placement: 'header',
+        type: 'image',
+        imageUrl: '',
+        linkUrl: '',
+        altText: '',
+        htmlContent: '',
+        scriptContent: '',
+        isActive: true,
+        priority: 0
+      });
+      
+      // Refresh data
+      queryClient.invalidateQueries({ queryKey: ['/api/ads/all'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/ads'] });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to update advertisement.',
+        variant: 'destructive'
+      });
+    }
+  });
+  
+  // Mutation for toggling advertisement active status
+  const toggleAdStatusMutation = useMutation({
+    mutationFn: (id) => apiRequest(`/api/ads/${id}/toggle`, {
+      method: 'PUT'
+    }),
+    onSuccess: () => {
+      toast({
+        title: 'Advertisement Status Updated',
+        description: 'The advertisement status has been toggled successfully.'
+      });
+      
+      // Refresh data
+      queryClient.invalidateQueries({ queryKey: ['/api/ads/all'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/ads'] });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to toggle advertisement status.',
+        variant: 'destructive'
+      });
+    }
+  });
+  
+  // Mutation for deleting an advertisement
+  const deleteAdMutation = useMutation({
+    mutationFn: (id) => apiRequest(`/api/ads/${id}`, {
+      method: 'DELETE'
+    }),
+    onSuccess: () => {
+      toast({
+        title: 'Advertisement Deleted',
+        description: 'The advertisement has been deleted successfully.'
+      });
+      
+      // Refresh data
+      queryClient.invalidateQueries({ queryKey: ['/api/ads/all'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/ads'] });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to delete advertisement.',
+        variant: 'destructive'
+      });
+    }
+  });
+  
   // Mutation for deleting a task
   const deleteTaskMutation = useMutation({
     mutationFn: (id) => apiRequest(`/api/admin/tasks/${id}`, {
@@ -401,6 +552,31 @@ const AdminPage = () => {
     setIsTaskDialogOpen(true);
   };
   
+  // Handle editing an advertisement
+  const handleEditAd = (ad) => {
+    setAdForm({
+      name: ad.name,
+      placement: ad.placement,
+      type: ad.type,
+      imageUrl: ad.imageUrl || '',
+      linkUrl: ad.linkUrl || '',
+      altText: ad.altText || '',
+      htmlContent: ad.htmlContent || '',
+      scriptContent: ad.scriptContent || '',
+      isActive: ad.isActive,
+      priority: ad.priority || 0
+    });
+    
+    setEditingAdId(ad.id);
+  };
+  
+  // Handle deleting an advertisement
+  const handleDeleteAd = (id) => {
+    if (confirm('Are you sure you want to delete this advertisement? This action cannot be undone.')) {
+      deleteAdMutation.mutate(id);
+    }
+  };
+  
   // List of common social media icons
   const socialIcons = [
     { name: 'Twitter', icon: 'bxl-twitter' },
@@ -464,11 +640,12 @@ const AdminPage = () => {
       </div>
       
       <Tabs defaultValue="dashboard" className="flex-1">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           <TabsTrigger value="tasks">Tasks</TabsTrigger>
           <TabsTrigger value="coin">Coin Settings</TabsTrigger>
           <TabsTrigger value="social">Social Media</TabsTrigger>
+          <TabsTrigger value="ads">Advertisements</TabsTrigger>
         </TabsList>
         
         {/* Dashboard Tab */}
@@ -1099,6 +1276,269 @@ const AdminPage = () => {
                 ) : (
                   <div className="text-center py-4 text-muted-foreground">
                     No social media links added yet
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        {/* Advertisements Tab */}
+        <TabsContent value="ads" className="space-y-4 mt-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-xl font-bold">Advertisements Management</h2>
+              <p className="text-sm text-muted-foreground">
+                Create and manage ads displayed throughout the app
+              </p>
+            </div>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button>
+                  <i className="bx bx-plus mr-1"></i> Add Advertisement
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[525px]">
+                <DialogHeader>
+                  <DialogTitle>Create New Advertisement</DialogTitle>
+                  <DialogDescription>
+                    Fill in the details below to create a new advertisement.
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  // Call the create ad mutation
+                  createAdMutation.mutate(adForm);
+                }}>
+                  <div className="grid gap-4 py-4">
+                    <div className="flex flex-col space-y-1.5">
+                      <Label htmlFor="ad-name">Name</Label>
+                      <Input 
+                        id="ad-name" 
+                        placeholder="Name of the advertisement" 
+                        value={adForm.name}
+                        onChange={(e) => setAdForm({...adForm, name: e.target.value})}
+                        required
+                      />
+                    </div>
+                    
+                    <div className="flex flex-col space-y-1.5">
+                      <Label htmlFor="ad-placement">Placement</Label>
+                      <Select 
+                        value={adForm.placement}
+                        onValueChange={(value) => setAdForm({...adForm, placement: value})}
+                      >
+                        <SelectTrigger id="ad-placement">
+                          <SelectValue placeholder="Select placement" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="header">Header</SelectItem>
+                          <SelectItem value="footer">Footer</SelectItem>
+                          <SelectItem value="sidebar">Sidebar</SelectItem>
+                          <SelectItem value="main">Main Content</SelectItem>
+                          <SelectItem value="game">Games Page</SelectItem>
+                          <SelectItem value="earn">Earn Page</SelectItem>
+                          <SelectItem value="profile">Profile Page</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="flex flex-col space-y-1.5">
+                      <Label htmlFor="ad-type">Ad Type</Label>
+                      <Select 
+                        value={adForm.type}
+                        onValueChange={(value) => setAdForm({...adForm, type: value})}
+                      >
+                        <SelectTrigger id="ad-type">
+                          <SelectValue placeholder="Select ad type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="image">Image</SelectItem>
+                          <SelectItem value="html">HTML</SelectItem>
+                          <SelectItem value="script">Script</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    {adForm.type === 'image' && (
+                      <>
+                        <div className="flex flex-col space-y-1.5">
+                          <Label htmlFor="ad-image-url">Image URL</Label>
+                          <Input 
+                            id="ad-image-url" 
+                            placeholder="URL to the image" 
+                            value={adForm.imageUrl}
+                            onChange={(e) => setAdForm({...adForm, imageUrl: e.target.value})}
+                          />
+                        </div>
+                        
+                        <div className="flex flex-col space-y-1.5">
+                          <Label htmlFor="ad-link-url">Link URL</Label>
+                          <Input 
+                            id="ad-link-url" 
+                            placeholder="URL when clicked" 
+                            value={adForm.linkUrl}
+                            onChange={(e) => setAdForm({...adForm, linkUrl: e.target.value})}
+                          />
+                        </div>
+                        
+                        <div className="flex flex-col space-y-1.5">
+                          <Label htmlFor="ad-alt-text">Alt Text</Label>
+                          <Input 
+                            id="ad-alt-text" 
+                            placeholder="Alternative text for the image" 
+                            value={adForm.altText}
+                            onChange={(e) => setAdForm({...adForm, altText: e.target.value})}
+                          />
+                        </div>
+                      </>
+                    )}
+                    
+                    {adForm.type === 'html' && (
+                      <div className="flex flex-col space-y-1.5">
+                        <Label htmlFor="ad-html">HTML Content</Label>
+                        <Textarea 
+                          id="ad-html" 
+                          placeholder="Enter HTML content" 
+                          value={adForm.htmlContent}
+                          onChange={(e) => setAdForm({...adForm, htmlContent: e.target.value})}
+                          rows={5}
+                        />
+                        <small className="text-muted-foreground">
+                          Enter valid HTML to be rendered in the ad space.
+                        </small>
+                      </div>
+                    )}
+                    
+                    {adForm.type === 'script' && (
+                      <div className="flex flex-col space-y-1.5">
+                        <Label htmlFor="ad-script">Script Content</Label>
+                        <Textarea 
+                          id="ad-script" 
+                          placeholder="Enter script content" 
+                          value={adForm.scriptContent}
+                          onChange={(e) => setAdForm({...adForm, scriptContent: e.target.value})}
+                          rows={5}
+                        />
+                        <small className="text-muted-foreground">
+                          Enter JavaScript code or ad network script tags.
+                        </small>
+                      </div>
+                    )}
+                    
+                    <div className="flex flex-col space-y-1.5">
+                      <Label htmlFor="ad-priority">Priority</Label>
+                      <Input 
+                        id="ad-priority" 
+                        type="number"
+                        placeholder="0" 
+                        min="0"
+                        max="100"
+                        value={adForm.priority}
+                        onChange={(e) => setAdForm({...adForm, priority: parseInt(e.target.value)})}
+                      />
+                      <small className="text-muted-foreground">
+                        Higher priority ads will be shown first (0-100)
+                      </small>
+                    </div>
+                    
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        id="ad-active"
+                        checked={adForm.isActive}
+                        onCheckedChange={(checked) => setAdForm({...adForm, isActive: !!checked})}
+                      />
+                      <Label htmlFor="ad-active">Active</Label>
+                    </div>
+                  </div>
+                  
+                  <DialogFooter>
+                    <DialogClose asChild>
+                      <Button type="button" variant="outline">Cancel</Button>
+                    </DialogClose>
+                    <Button type="submit">Save Advertisement</Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
+          
+          {/* Ads List */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="space-y-4">
+                {ads?.data ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Placement</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Priority</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {ads.data.map((ad) => (
+                        <TableRow key={ad.id}>
+                          <TableCell>
+                            <div className="font-medium">{ad.name}</div>
+                          </TableCell>
+                          <TableCell>
+                            <span className="capitalize">{ad.placement}</span>
+                          </TableCell>
+                          <TableCell>
+                            <span className="capitalize">{ad.type}</span>
+                          </TableCell>
+                          <TableCell>
+                            <span className={`px-2 py-1 rounded-full text-xs ${
+                              ad.isActive 
+                                ? 'bg-green-500/10 text-green-500'
+                                : 'bg-gray-500/10 text-gray-500'
+                            }`}>
+                              {ad.isActive ? 'Active' : 'Inactive'}
+                            </span>
+                          </TableCell>
+                          <TableCell>{ad.priority}</TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end space-x-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEditAd(ad)}
+                              >
+                                <i className="bx bx-edit"></i>
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => toggleAdStatusMutation.mutate(ad.id)}
+                              >
+                                <i className={`bx ${ad.isActive ? 'bx-hide' : 'bx-show'}`}></i>
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteAd(ad.id)}
+                              >
+                                <i className="bx bx-trash text-red-500"></i>
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <div className="py-8 text-center">
+                    <div className="w-16 h-16 mx-auto mb-4 bg-primary/10 rounded-full flex items-center justify-center">
+                      <i className="bx bx-purchase-tag-alt text-primary text-3xl"></i>
+                    </div>
+                    <h3 className="text-lg font-medium">No advertisements yet</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Ads will appear here once created
+                    </p>
                   </div>
                 )}
               </div>

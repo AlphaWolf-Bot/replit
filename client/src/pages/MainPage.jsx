@@ -118,9 +118,11 @@ const MainPage = () => {
         setTapAnimation(true);
         setTimeout(() => setTapAnimation(false), 500);
         
-        // Refresh user data and wallet data
+        // Refresh user data, wallet data, and leaderboard
         queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
         queryClient.invalidateQueries({ queryKey: ['/api/wallet/transactions'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/wallet/balance'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/leaderboard'] });
       } else {
         // Handle unexpected response format
         toast({

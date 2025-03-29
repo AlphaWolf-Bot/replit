@@ -175,8 +175,8 @@ async function processTap(user, res) {
     newDailyTapCount = 0;
   }
   
-  // Calculate XP gain - each tap gives a small amount of XP
-  const xpGain = 5; // 5 XP per tap
+  // Calculate XP gain based on coins earned (1 XP for every 10 coins)
+  const xpGain = Math.floor(coinValue / 2); // 5 coins = 2.5 XP, rounded down to 2 XP
   const currentXP = user.xp || 0;
   const newXP = currentXP + xpGain;
   
