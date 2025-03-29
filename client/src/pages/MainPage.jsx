@@ -38,21 +38,25 @@ const MainPage = () => {
   
   // Mutation for tapping the coin
   const tapCoinMutation = useMutation({
-    mutationFn: () => apiRequest('/api/coin/tap', { method: 'POST' }),
+    mutationFn: async () => {
+      const response = await apiRequest('/api/coin/tap', { method: 'POST' });
+      return await response.json();
+    },
     onSuccess: (data) => {
       if (data?.success && data?.data) {
         // Show toast notification
         toast({
           title: 'Coins Added!',
-          description: `You earned ${data.data.coinValue} coins.`,
+          description: `You earned ${data.data.coinValue} coins. New balance: ${data.data.newBalance}`,
         });
         
         // Trigger the tap animation
         setTapAnimation(true);
         setTimeout(() => setTapAnimation(false), 500);
         
-        // Refresh user data
+        // Refresh user data and wallet data
         queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/wallet/transactions'] });
       } else {
         // Handle unexpected response format
         toast({

@@ -1,45 +1,91 @@
 import { useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
 import { getTelegramUser, getInitData } from '@/lib/telegram';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import WolfLoader from './WolfLoader';
 import { apiRequest } from '@/lib/queryClient';
 
 const TelegramWebApp = ({ children }) => {
   const [, setLocation] = useLocation();
   const [isInitialized, setIsInitialized] = useState(false);
+  const queryClient = useQueryClient();
   
   // Get user from Telegram WebApp
   const telegramUser = getTelegramUser();
+  const initData = getInitData();
+  
+  // Set up global headers for API requests
+  useEffect(() => {
+    // Add the Telegram init data to the fetch function's headers
+    const originalFetch = window.fetch;
+    window.fetch = function(url, options = {}) {
+      // Clone the options to avoid modifying the original options object
+      const newOptions = { ...options };
+      
+      // Create headers if they don't exist
+      newOptions.headers = newOptions.headers || {};
+      
+      // Add Telegram init data to headers
+      if (initData) {
+        newOptions.headers = {
+          ...newOptions.headers,
+          'X-Telegram-Init-Data': initData
+        };
+      }
+      
+      // Call the original fetch function with the modified options
+      return originalFetch.call(this, url, newOptions);
+    };
+    
+    // Cleanup function to restore the original fetch
+    return () => {
+      window.fetch = originalFetch;
+    };
+  }, [initData]);
   
   // Login user on the backend
   const { isLoading, error } = useQuery({
     queryKey: ['/api/auth/login'],
     queryFn: async () => {
       try {
-        const initData = getInitData();
-        if (!initData) {
+        if (!initData && !telegramUser) {
           throw new Error('Missing Telegram init data');
         }
         
-        const response = await apiRequest('POST', '/api/auth/login', {});
-        return response.json();
+        // Create user or get existing user
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Telegram-Init-Data': initData || ''
+          },
+          credentials: 'include'
+        });
+        
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(`${response.status}: ${text}`);
+        }
+        
+        return await response.json();
       } catch (error) {
         console.error('Login error:', error);
         throw error;
       }
     },
     retry: 1,
-    enabled: !!telegramUser,
+    enabled: !!telegramUser || process.env.NODE_ENV !== 'production',
     onSuccess: () => {
       setIsInitialized(true);
+      // Invalidate the user data query to refetch it
+      queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
     }
   });
   
   // Get user data after login
   const { data: userData } = useQuery({
     queryKey: ['/api/auth/me'],
-    enabled: isInitialized,
+    enabled: isInitialized || process.env.NODE_ENV !== 'production',
   });
   
   useEffect(() => {
@@ -56,6 +102,15 @@ const TelegramWebApp = ({ children }) => {
       window.navigateTo = undefined;
     };
   }, [setLocation]);
+  
+  // For development mode, bypass loading screen
+  if (process.env.NODE_ENV !== 'production') {
+    return (
+      <div className="flex flex-col min-h-screen">
+        {children}
+      </div>
+    );
+  }
   
   if (isLoading) {
     return <WolfLoader />;
@@ -78,7 +133,7 @@ const TelegramWebApp = ({ children }) => {
   }
   
   return (
-    <div className="flex flex-col min-h-screen bg-wolf-secondary">
+    <div className="flex flex-col min-h-screen">
       {children}
     </div>
   );
