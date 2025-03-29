@@ -28,7 +28,7 @@ const LeaderboardTable = () => {
     newSocket.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        if (data.type === 'leaderboard') {
+        if (data.type === 'leaderboard' && Array.isArray(data.data)) {
           setLeaderboard(data.data);
           setHasNewData(true);
           
@@ -36,6 +36,8 @@ const LeaderboardTable = () => {
           setTimeout(() => {
             setHasNewData(false);
           }, 2000);
+        } else {
+          console.log('Received WebSocket data:', data);
         }
       } catch (err) {
         console.error('Error parsing WebSocket message:', err);
@@ -63,7 +65,15 @@ const LeaderboardTable = () => {
   // Initialize leaderboard data from API
   useEffect(() => {
     if (data) {
-      setLeaderboard(data);
+      // Check if data has the expected structure
+      if (data.data && Array.isArray(data.data)) {
+        setLeaderboard(data.data);
+      } else if (Array.isArray(data)) {
+        setLeaderboard(data);
+      } else {
+        // Default to empty array if data is not in expected format
+        setLeaderboard([]);
+      }
       setIsLoading(false);
     }
   }, [data]);

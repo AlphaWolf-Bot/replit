@@ -1,8 +1,9 @@
 import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useLocation } from 'wouter';
 import LeaderboardTable from '@/components/Leaderboard/LeaderboardTable';
 import UserRankCard from '@/components/Leaderboard/UserRankCard';
-import { tgWebApp, showBackButton, hideBackButton } from '@/lib/telegram';
+import { tgWebApp } from '@/lib/telegram';
 
 // Confetti animation effects for top positions
 const ConfettiEffect = () => {
@@ -52,18 +53,7 @@ const ConfettiEffect = () => {
 };
 
 const LeaderboardPage = () => {
-  // Handle Telegram back button
-  useEffect(() => {
-    // Show back button on mount
-    showBackButton(() => {
-      window.history.back();
-    });
-    
-    // Hide back button on unmount
-    return () => {
-      hideBackButton();
-    };
-  }, []);
+  const [, setLocation] = useLocation();
   
   return (
     <motion.div 
@@ -74,14 +64,27 @@ const LeaderboardPage = () => {
     >
       <ConfettiEffect />
       
-      <motion.h1 
-        className="text-3xl font-bold mb-6 text-center"
-        initial={{ y: -50, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.2 }}
-      >
-        Alpha Wolf Leaderboard
-      </motion.h1>
+      <div className="flex items-center mb-4">
+        <motion.button 
+          className="bg-background p-2 rounded-full mr-2"
+          onClick={() => setLocation('/')}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          initial={{ x: -20, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+        >
+          <i className="bx bx-chevron-left text-xl"></i>
+        </motion.button>
+        
+        <motion.h1 
+          className="text-3xl font-bold text-center flex-1"
+          initial={{ y: -20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.2 }}
+        >
+          Alpha Wolf Leaderboard
+        </motion.h1>
+      </div>
       
       <motion.div
         initial={{ y: 20, opacity: 0 }}

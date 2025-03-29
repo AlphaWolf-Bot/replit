@@ -5,9 +5,12 @@ import { Progress } from '@/components/ui/progress';
 
 const UserRankCard = ({ className = '' }) => {
   // Fetch current user data
-  const { data: user, isLoading: isUserLoading } = useQuery({
+  const { data: userData, isLoading: isUserLoading } = useQuery({
     queryKey: ['/api/auth/me'],
   });
+  
+  // Extract user data handling different response structures
+  const user = userData?.data || userData;
 
   // Fetch user's leaderboard position
   const { data: rankData, isLoading: isRankLoading } = useQuery({
@@ -15,8 +18,9 @@ const UserRankCard = ({ className = '' }) => {
   });
 
   const isLoading = isUserLoading || isRankLoading;
-  const rank = rankData?.rank || '–';
-  const totalUsers = rankData?.totalUsers || 0;
+  // Handle different API response structures
+  const rank = rankData?.data?.rank || rankData?.rank || '–';
+  const totalUsers = rankData?.data?.totalUsers || rankData?.totalUsers || 0;
   
   // Calculate percentage in top players
   const rankPercentage = totalUsers > 0 ? 
