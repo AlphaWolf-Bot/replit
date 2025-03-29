@@ -117,6 +117,44 @@ const MainPage = () => {
       
       {/* Content Area */}
       <main className="flex-1 p-4 overflow-auto">
+        {/* Tap-to-Earn Wolf Coin */}
+        <section className="mb-6">
+          <div className="bg-gradient-to-r from-primary to-accent rounded-xl shadow-md p-5 relative overflow-hidden">
+            <div className="absolute top-2 right-3 bg-white bg-opacity-25 rounded-full px-3 py-1 text-xs text-white font-medium">
+              {user?.dailyTapCount || 0}/100 Taps
+            </div>
+            <div className="flex flex-col items-center justify-center">
+              <button 
+                className="tap-coin relative w-28 h-28 mb-2 transform transition-transform duration-200 active:scale-95 focus:outline-none"
+                onClick={() => {
+                  // This would be replaced with a real API call in production
+                  const currentCount = user?.dailyTapCount || 0;
+                  if (currentCount < 100) {
+                    // In a real implementation, this would call an API to update the tap count
+                    // queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
+                  }
+                }}
+                disabled={user?.dailyTapCount >= 100}
+              >
+                <div className="absolute inset-0 bg-yellow-400 rounded-full animate-pulse opacity-20"></div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <svg width="100" height="100" viewBox="0 0 100 100" className="wolf-coin">
+                    <circle cx="50" cy="50" r="45" fill="#FFD700" stroke="#B8860B" strokeWidth="2" />
+                    <circle cx="50" cy="50" r="40" fill="#FFDF00" />
+                    {/* Wolf silhouette */}
+                    <path d="M35,30 C30,32 28,40 30,45 C31,47 28,50 30,52 C32,54 34,55 35,55 C36,55 38,54 40,52 C42,50 44,48 45,45 C46,42 47,40 50,40 C53,40 54,42 55,45 C56,48 58,50 60,52 C62,54 64,55 65,55 C66,55 68,54 70,52 C72,50 69,47 70,45 C72,40 70,32 65,30 C60,28 55,32 50,35 C45,32 40,28 35,30 Z" fill="#8B4513" />
+                    <circle cx="40" cy="42" r="3" fill="#000" />
+                    <circle cx="60" cy="42" r="3" fill="#000" />
+                    <path d="M45,48 C46,50 48,52 50,52 C52,52 54,50 55,48" stroke="#000" strokeWidth="1.5" fill="none" />
+                  </svg>
+                </div>
+              </button>
+              <h3 className="text-white font-bold text-lg mb-1">Tap to Earn</h3>
+              <p className="text-white text-sm text-center">Tap the Wolf Coin to earn rewards. Limited to 100 taps per day!</p>
+            </div>
+          </div>
+        </section>
+        
         {/* Daily Tasks */}
         <section className="mb-6">
           <div className="flex justify-between items-center mb-4">
@@ -172,6 +210,37 @@ const MainPage = () => {
                 <p className="text-xs text-muted-foreground text-center">{action.description}</p>
               </div>
             ))}
+          </div>
+        </section>
+        
+        {/* Wolf Rank and Level */}
+        <section className="mb-6">
+          <div className="bg-card rounded-xl shadow-md p-4">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-lg font-rajdhani font-bold">Wolf Rank</h2>
+              <span className="text-xs bg-primary text-white px-2 py-1 rounded-full">Level {user?.level || 1}</span>
+            </div>
+            <div className="flex items-center mb-3">
+              <div className="w-12 h-12 rounded-full bg-primary bg-opacity-20 flex items-center justify-center mr-3">
+                <i className='bx bx-crown text-primary text-2xl'></i>
+              </div>
+              <div>
+                <h3 className="font-bold text-lg">{user?.wolfRank || 'Wolf Pup'}</h3>
+                <div className="flex items-center text-xs text-muted-foreground">
+                  <span>Next rank at Level {Math.ceil((user?.level || 1) / 10) * 10}</span>
+                </div>
+              </div>
+            </div>
+            <div className="wolf-progress-bar bg-background h-2 rounded-full overflow-hidden mb-2">
+              <div 
+                className="h-full bg-gradient-to-r from-primary to-accent"
+                style={{ width: `${xpProgress}%` }}
+              ></div>
+            </div>
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>Level {user?.level || 1}</span>
+              <span>Level {(user?.level || 1) + 1}</span>
+            </div>
           </div>
         </section>
         

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useLocation } from 'wouter';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
@@ -18,9 +18,29 @@ const EarnPage = () => {
     queryKey: ['/api/tasks'],
   });
   
+  // Get social media platforms
+  const { data: socialMedia } = useQuery({
+    queryKey: ['/api/social-media'],
+  });
+  
   // Get referral stats
   const { data: referralStats } = useQuery({
     queryKey: ['/api/referrals/stats'],
+  });
+  
+  // Claim social media reward mutation
+  const claimSocialReward = useMutation({
+    mutationFn: async (socialMediaId) => {
+      return apiRequest('POST', '/api/social-media/claim', { socialMediaId });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/social-media'] });
+      showAlert('Social media reward claimed successfully!');
+    },
+    onError: (error) => {
+      showAlert(`Failed to claim reward: ${error.message}`);
+    }
   });
   
   // Mutation to claim task reward
@@ -64,6 +84,65 @@ const EarnPage = () => {
         showAlert(`Share this link with friends: ${shareUrl}`);
       }
     }
+  };
+  
+  // Hard-coded social media links (in a real app, these would come from the backend)
+  const socialMediaLinks = socialMedia || [
+    {
+      id: 1,
+      platform: 'Instagram',
+      name: '@alphawolf_official',
+      url: 'https://instagram.com/alphawolf_official',
+      icon: 'bxl-instagram',
+      iconColor: 'text-pink-500',
+      reward: 100,
+      isFollowed: false,
+      rewardClaimed: false
+    },
+    {
+      id: 2,
+      platform: 'YouTube',
+      name: 'AlphaWolf Gaming',
+      url: 'https://youtube.com/alphawolfgaming',
+      icon: 'bxl-youtube',
+      iconColor: 'text-red-500',
+      reward: 100,
+      isFollowed: false,
+      rewardClaimed: false
+    },
+    {
+      id: 3,
+      platform: 'Telegram',
+      name: 'AlphaWolf Community',
+      url: 'https://t.me/alphawolfcommunity',
+      icon: 'bxl-telegram',
+      iconColor: 'text-blue-500',
+      reward: 100,
+      isFollowed: false,
+      rewardClaimed: false
+    },
+    {
+      id: 4,
+      platform: 'Twitter',
+      name: '@alphawolf_app',
+      url: 'https://twitter.com/alphawolf_app',
+      icon: 'bxl-twitter',
+      iconColor: 'text-blue-400',
+      reward: 100,
+      isFollowed: false,
+      rewardClaimed: false
+    }
+  ];
+  
+  // Handle social media follow
+  const handleSocialMediaFollow = (socialMedia) => {
+    // Open the link in a new window
+    window.open(socialMedia.url, '_blank');
+    
+    // Mark as followed (in a real app, this would need verification)
+    setTimeout(() => {
+      showAlert(`Have you followed us on ${socialMedia.platform}? Claim your reward!`);
+    }, 3000);
   };
   
   const dailyTasks = tasks?.filter(task => task.type === 'daily') || [];
@@ -141,6 +220,51 @@ const EarnPage = () => {
           </div>
         </section>
         
+        {/* Social Media Section */}
+        <section className="mb-6">
+          <div className="bg-card rounded-xl shadow-md p-4">
+            <h2 className="font-rajdhani font-bold text-lg mb-4">Social Media Rewards</h2>
+            <p className="text-muted-foreground text-sm mb-4">Follow us on social media and earn 100 coins for each!</p>
+            
+            {socialMediaLinks.map((social) => (
+              <div key={social.id} className="border-b border-background py-3 last:border-0">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center space-x-3">
+                    <div className={`w-10 h-10 rounded-full bg-opacity-20 ${social.iconColor.replace('text-', 'bg-')} flex items-center justify-center`}>
+                      <i className={`bx ${social.icon} ${social.iconColor} text-xl`}></i>
+                    </div>
+                    <div>
+                      <h3 className="font-medium">{social.platform}</h3>
+                      <span className="text-xs text-muted-foreground">{social.name}</span>
+                    </div>
+                  </div>
+                  
+                  {social.rewardClaimed ? (
+                    <button className="bg-green-500 bg-opacity-20 px-3 py-1 rounded-lg text-green-500 text-sm font-medium">
+                      Claimed
+                    </button>
+                  ) : social.isFollowed ? (
+                    <button 
+                      className="bg-background px-3 py-1 rounded-lg text-primary text-sm font-medium"
+                      onClick={() => claimSocialReward.mutate(social.id)}
+                      disabled={claimSocialReward.isPending}
+                    >
+                      +{social.reward} <i className='bx bx-coin text-primary ml-1'></i>
+                    </button>
+                  ) : (
+                    <button 
+                      className="bg-background px-3 py-1 rounded-lg text-primary text-sm font-medium"
+                      onClick={() => handleSocialMediaFollow(social)}
+                    >
+                      Follow
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+        
         {/* Referrals Section */}
         <section className="mb-6">
           <div className="bg-card rounded-xl shadow-md p-4">
@@ -177,28 +301,8 @@ const EarnPage = () => {
           </div>
         </section>
         
-        {/* Special Offers Section */}
+        {/* Daily Challenge Banner */}
         <section>
-          <h2 className="font-rajdhani font-bold text-lg mb-4">Special Offers</h2>
-          
-          <div className="bg-gradient-to-r from-primary to-accent rounded-xl shadow-md p-4 mb-4">
-            <div className="flex justify-between items-center">
-              <div>
-                <h3 className="font-rajdhani font-bold text-white mb-1">FIRST DEPOSIT BONUS</h3>
-                <p className="text-white text-sm mb-2">Get 100% bonus on your first deposit</p>
-                <button 
-                  className="bg-white text-primary font-medium px-4 py-2 rounded-lg text-sm"
-                  onClick={() => handleNavigation('/wallet')}
-                >
-                  Claim Now
-                </button>
-              </div>
-              <div className="w-16 h-16 flex items-center justify-center">
-                <i className='bx bx-gift text-white text-4xl'></i>
-              </div>
-            </div>
-          </div>
-          
           <div className="bg-card rounded-xl shadow-md p-4">
             <div className="flex justify-between items-center">
               <div>
