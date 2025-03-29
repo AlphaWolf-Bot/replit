@@ -8,6 +8,7 @@ import referralRoutes from "./routes/referrals.js";
 import coinRoutes, { setWebSocketServer } from "./routes/coin.js";
 import adminRoutes from "./routes/admin.js";
 import leaderboardRoutes from "./routes/leaderboard.js";
+import badgeRoutes from "./routes/badges.js";
 import { db } from "./db";
 import * as schema from "../shared/schema";
 import { eq, desc } from "drizzle-orm";
@@ -38,6 +39,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   apiRouter.use("/coin", authenticateTelegram, coinRoutes);
   apiRouter.use("/admin", adminRoutes);
   apiRouter.use("/leaderboard", leaderboardRoutes);
+  apiRouter.use("/badges", badgeRoutes);
   
   // Tasks API
   apiRouter.get("/tasks", authenticateTelegram, async (req, res) => {

@@ -208,3 +208,51 @@ export type UserSocialMedia = typeof userSocialMedia.$inferSelect;
 
 export type InsertCoinSettings = z.infer<typeof insertCoinSettingsSchema>;
 export type CoinSettings = typeof coinSettings.$inferSelect;
+
+// Achievement badges system
+export const badges = pgTable("badges", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  category: text("category").notNull(), // daily, social, level, game, special
+  icon: text("icon").notNull(),
+  iconColor: text("icon_color").default("text-primary").notNull(),
+  requirement: integer("requirement").default(1).notNull(),
+  rarity: text("rarity").default("common").notNull(), // common, uncommon, rare, epic, legendary
+  xpReward: integer("xp_reward").default(0).notNull(),
+  coinReward: integer("coin_reward").default(0).notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull()
+});
+
+export const userBadges = pgTable("user_badges", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  badgeId: integer("badge_id").references(() => badges.id).notNull(),
+  progress: integer("progress").default(0).notNull(),
+  earned: boolean("earned").default(false).notNull(),
+  earnedAt: timestamp("earned_at"),
+  rewardClaimed: boolean("reward_claimed").default(false).notNull(),
+  featured: boolean("featured").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull()
+});
+
+export const insertBadgeSchema = createInsertSchema(badges).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+
+export const insertUserBadgeSchema = createInsertSchema(userBadges).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+
+export type InsertBadge = z.infer<typeof insertBadgeSchema>;
+export type Badge = typeof badges.$inferSelect;
+
+export type InsertUserBadge = z.infer<typeof insertUserBadgeSchema>;
+export type UserBadge = typeof userBadges.$inferSelect;

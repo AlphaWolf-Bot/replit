@@ -1,8 +1,9 @@
 import {
-  users, tasks, userTasks, transactions, friends,
+  users, tasks, userTasks, transactions, friends, badges, userBadges,
   type User, type InsertUser, type Task, type InsertTask,
   type UserTask, type InsertUserTask, type Transaction, 
-  type InsertTransaction, type Friend, type InsertFriend
+  type InsertTransaction, type Friend, type InsertFriend,
+  type Badge, type InsertBadge, type UserBadge, type InsertUserBadge
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql } from "drizzle-orm";
@@ -36,6 +37,18 @@ export interface IStorage {
   generateReferralCode(): Promise<string>;
   getUserByReferralCode(code: string): Promise<User | undefined>;
   getReferrals(userId: number): Promise<{ count: number, earnings: number }>;
+  
+  // Badge operations
+  getBadges(isActive?: boolean): Promise<Badge[]>;
+  getBadge(id: number): Promise<Badge | undefined>;
+  createBadge(badge: InsertBadge): Promise<Badge>;
+  updateBadge(id: number, data: Partial<InsertBadge>): Promise<Badge | undefined>;
+  deleteBadge(id: number): Promise<boolean>;
+  getUserBadges(userId: number): Promise<(UserBadge & { badge: Badge })[]>;
+  getUserBadge(userId: number, badgeId: number): Promise<UserBadge | undefined>;
+  createUserBadge(userBadge: InsertUserBadge): Promise<UserBadge>;
+  updateUserBadge(userId: number, badgeId: number, data: Partial<InsertUserBadge>): Promise<UserBadge | undefined>;
+  claimBadgeReward(userId: number, badgeId: number): Promise<UserBadge | undefined>;
   
   // Leaderboard
   getLeaderboard(limit?: number): Promise<User[]>;
@@ -271,6 +284,137 @@ export class DatabaseStorage implements IStorage {
       .from(users)
       .orderBy(desc(users.coins))
       .limit(limit);
+  }
+
+  // Badge operations
+  async getBadges(isActive?: boolean): Promise<Badge[]> {
+    if (isActive !== undefined) {
+      return db.select().from(badges).where(eq(badges.isActive, isActive));
+    }
+    return db.select().from(badges);
+  }
+
+  async getBadge(id: number): Promise<Badge | undefined> {
+    const [badge] = await db.select().from(badges).where(eq(badges.id, id));
+    return badge || undefined;
+  }
+
+  async createBadge(badge: InsertBadge): Promise<Badge> {
+    const [newBadge] = await db
+      .insert(badges)
+      .values(badge)
+      .returning();
+    return newBadge;
+  }
+
+  async updateBadge(id: number, data: Partial<InsertBadge>): Promise<Badge | undefined> {
+    const [updatedBadge] = await db
+      .update(badges)
+      .set({
+        ...data,
+        updatedAt: new Date()
+      })
+      .where(eq(badges.id, id))
+      .returning();
+    return updatedBadge || undefined;
+  }
+
+  async deleteBadge(id: number): Promise<boolean> {
+    try {
+      await db.delete(badges).where(eq(badges.id, id));
+      return true;
+    } catch (error) {
+      console.error('Error deleting badge:', error);
+      return false;
+    }
+  }
+
+  async getUserBadges(userId: number): Promise<(UserBadge & { badge: Badge })[]> {
+    const results = await db
+      .select()
+      .from(userBadges)
+      .innerJoin(badges, eq(userBadges.badgeId, badges.id))
+      .where(eq(userBadges.userId, userId));
+    
+    return results.map(row => ({
+      ...row.user_badges,
+      badge: row.badges
+    }));
+  }
+
+  async getUserBadge(userId: number, badgeId: number): Promise<UserBadge | undefined> {
+    const [userBadge] = await db
+      .select()
+      .from(userBadges)
+      .where(
+        and(
+          eq(userBadges.userId, userId),
+          eq(userBadges.badgeId, badgeId)
+        )
+      );
+    return userBadge || undefined;
+  }
+
+  async createUserBadge(userBadge: InsertUserBadge): Promise<UserBadge> {
+    const [newUserBadge] = await db
+      .insert(userBadges)
+      .values(userBadge)
+      .returning();
+    return newUserBadge;
+  }
+
+  async updateUserBadge(userId: number, badgeId: number, data: Partial<InsertUserBadge>): Promise<UserBadge | undefined> {
+    const [updatedUserBadge] = await db
+      .update(userBadges)
+      .set({
+        ...data,
+        updatedAt: new Date()
+      })
+      .where(
+        and(
+          eq(userBadges.userId, userId),
+          eq(userBadges.badgeId, badgeId)
+        )
+      )
+      .returning();
+    return updatedUserBadge || undefined;
+  }
+
+  async claimBadgeReward(userId: number, badgeId: number): Promise<UserBadge | undefined> {
+    // Get the user badge
+    const userBadge = await this.getUserBadge(userId, badgeId);
+    if (!userBadge || !userBadge.earned || userBadge.rewardClaimed) {
+      return undefined;
+    }
+
+    // Get the badge and user
+    const badge = await this.getBadge(badgeId);
+    const user = await this.getUser(userId);
+    
+    if (!badge || !user) {
+      return undefined;
+    }
+
+    // Update user XP if there's an XP reward
+    if (badge.xpReward > 0) {
+      await this.updateUser(userId, { xp: user.xp + badge.xpReward });
+    }
+
+    // Update user coins if there's a coin reward
+    if (badge.coinReward > 0) {
+      await this.updateUser(userId, { coins: user.coins + badge.coinReward });
+      
+      // Create transaction record
+      await this.createTransaction({
+        userId,
+        amount: badge.coinReward,
+        type: 'badge_reward',
+        description: `Reward for the '${badge.name}' badge`
+      });
+    }
+
+    // Mark reward as claimed
+    return this.updateUserBadge(userId, badgeId, { rewardClaimed: true });
   }
 }
 
