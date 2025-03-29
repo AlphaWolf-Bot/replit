@@ -7,6 +7,7 @@ import SettingsIcon from '@/components/SettingsIcon';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import confetti from 'canvas-confetti';
+import { getLevelProgress, getNextLevelXP } from '@shared/wolfRanks.js';
 
 const MainPage = () => {
   const [, setLocation] = useLocation();
@@ -147,8 +148,9 @@ const MainPage = () => {
   
   // Calculate XP progress
   const currentXP = user?.xp || 0;
-  const nextLevelXP = ((user?.level || 1) * 200) || 200;
-  const xpProgress = Math.min(100, Math.floor((currentXP / nextLevelXP) * 100));
+  const currentLevel = user?.level || 1;
+  // Use the getLevelProgress function from wolfRanks.js to calculate accurate progress
+  const xpProgress = getLevelProgress(currentLevel, currentXP);
   
   const quickActions = [
     {
@@ -275,7 +277,7 @@ const MainPage = () => {
       <div className="bg-card px-6 pt-2 pb-6 shadow-md">
         <div className="flex justify-between items-center mb-2">
           <span className="text-xs text-muted-foreground">
-            Level {user?.level || 1} • {currentXP}/{nextLevelXP} XP
+            Level {user?.level || 1} • {currentXP}/{getNextLevelXP(currentLevel)} XP
           </span>
           <span className="text-xs text-primary font-medium">{xpProgress}%</span>
         </div>

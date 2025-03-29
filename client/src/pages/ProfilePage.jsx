@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import BackButton from '@/components/BackButton';
 import { Progress } from '@/components/ui/progress';
 import { showAlert } from '@/lib/telegram';
+import { getLevelProgress, getNextLevelXP } from '@shared/wolfRanks.js';
 
 const ProfilePage = () => {
   const [, setLocation] = useLocation();
@@ -26,8 +27,9 @@ const ProfilePage = () => {
   
   // Calculate XP progress
   const currentXP = user?.xp || 0;
-  const nextLevelXP = ((user?.level || 1) * 200) || 200;
-  const xpProgress = Math.min(100, Math.floor((currentXP / nextLevelXP) * 100));
+  const currentLevel = user?.level || 1;
+  const nextLevelXP = getNextLevelXP(currentLevel);
+  const xpProgress = getLevelProgress(currentLevel, currentXP);
   
   // Calculate badges and achievements
   const userRank = user?.level >= 50 ? 'Alpha Wolf' :
